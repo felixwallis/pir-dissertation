@@ -1,0 +1,19 @@
+# Ignore OS generated files
+.DS_Store
+
+# Ignore Python virtual environments
+.venv
+
+# Ignore data directories
+*/data
+*/dist
+
+# Ignore specific file formats
+*.csv
+*.gz
+
+# Ignore specific directories
+hansard-in-full/debates_xml/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/

@@ -4,14 +4,15 @@
 # Ignore Python virtual environments
 .venv
 
-# Ignore specific file formats
-*.csv
-*.gz
-
 # Ignore specific directories
 hansard-in-full/debates_xml/
 congressional-record/data
 congressional-record/dist
+
+# Ignore specific files
+hansard-in-full/hansard_in_full.csv
+hansard_with_mp_details.csv
+people.csv
 
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/

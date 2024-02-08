@@ -8,6 +8,7 @@
 hansard-in-full/debates_xml/
 congressional-record/data
 congressional-record/dist
+analysis/data
 
 # Ignore specific files
 hansard-in-full/hansard_in_full.csv

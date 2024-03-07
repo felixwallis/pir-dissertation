@@ -1,0 +1,153 @@
+---
+title: "Climate Congressional Record and Climate Hansard Topic Modelling"
+output: pdf_document
+fontsize: 12pt
+---
+
+This R markdown document contains the code to create a topic model of the Climate Congressional Record and Climate Hansard datasets. A topic model is used to investigate the following hypotheses:
+- H2a: Between 1997 and 2015, there was a stronger association between party affiliation and pro- or anti-environmental topic prevalance among US legislators climate policy speeches than among UK legislators' climate policy speeches. 
+- H2b: Between 1997 and 2015, the association between party affiliation and pro- or anti-environmental topic prevalance increased among US legislators' climate policy speeches, while it reduced among UK legislators' climate policy speeches. 
+- H4: Between 1997 and 2015, the words used in US legislators' climate policy speeches exhibited more variation between elections and non-electoral periods than those used in UK legislators' climate policy speeches.
+- H5: Between 1997 and 2015, the association between the topics discussed in US legislators' climate policy speeches and American climate change opinion was stronger than the association between the topics discussed in UK legislators' climate policy speeches and British climate change opinion. 
+
+# Setup
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(stringr)
+library(quanteda)
+library(stm)
+
+DATA_PATH <- "data/"
+DIST_PATH <- "dist/"
+
+NUM_TOPICS <- 18
+
+climate_congressional_record <-
+    read_csv(paste0(DATA_PATH, "climate_congressional_record.csv"))
+climate_hansard <-
+    read_csv(paste0(DATA_PATH, "climate_hansard.csv"))
+```
+
+# Data Preprocessing
+
+## Cleaning the Climate Congressional Record dataset
+
+```{r}
+partitioned_climate_congressional_record <- climate_congressional_record |>
+    rename(
+        first_name = first_name_x,
+        family_name = last_name_x,
+        speech_date = date,
+        speech_party = party,
+        text = speech
+    ) |>
+    select(
+        speech_id,
+        first_name,
+        family_name,
+        speech_date,
+        speech_party,
+        text,
+        cleaned_stems
+    ) |>
+    filter(speech_party == "R" | speech_party == "D") |>
+    mutate(
+        name = paste(first_name, family_name, sep = " ") |>
+            str_to_title(),
+        first_name = str_to_title(first_name),
+        family_name = str_to_title(family_name),
+        speech_party = if_else(speech_party == "R", "Republican", "Democrat"),
+        speech_id = as.character(speech_id),
+        country = "USA"
+    )
+```
+
+## Cleaning the Climate Hansard dataset
+
+```{r}
+climate_hansard_party_filter <-
+    c("Conservative", "Labour", "Liberal Democrat", "Labour/Co-operative")
+partitioned_climate_hansard <- climate_hansard |>
+    select(
+        speech_id,
+        name,
+        first_name,
+        family_name,
+        speech_date,
+        speech_party,
+        text,
+        cleaned_stems
+    ) |>
+    filter(speech_party %in% climate_hansard_party_filter) |>
+    mutate(
+        speech_party =
+            if_else(
+                speech_party == "Labour/Co-operative", "Labour", speech_party
+            ),
+        country = "UK"
+    )
+```
+
+
+## Combining the Climate Congressional Record and Climate Hansard datasets
+
+```{r}
+complete_climate_speeches <- bind_rows(
+    partitioned_climate_congressional_record,
+    partitioned_climate_hansard
+) |>
+    arrange(speech_date) |>
+    mutate(
+        date_as_numeric = as.numeric(speech_date)
+    )
+```
+
+## Creating a Climate Speeches DFM
+
+```{r}
+climate_speeches_corpus <-
+    corpus(
+        complete_climate_speeches,
+        text_field = "cleaned_stems"
+    )
+climate_speeches_dfm <-
+    climate_speeches_corpus |>
+    tokens() |>
+    dfm()
+```
+
+# Testing Hypothesis 2a
+
+## Fitting a structural topic model with the `speech_party` covariate
+
+```{r}
+party_stm <- stm(
+    documents = climate_speeches_dfm,
+    prevalence = ~ speech_party + s(date_as_numeric),
+    K = NUM_TOPICS,
+    seed = 42
+)
+save(party_stm, file = paste0(DATA_PATH, "party_stm.RData"))
+
+party_prevalence_effects <- estimateEffect(
+    formula = c(seq_len(NUM_TOPICS)) ~ speech_party + s(date_as_numeric),
+    stmobj = party_stm,
+    metadata = docvars(climate_speeches_dfm)
+)
+summary(party_prevalence_effects)
+
+plot(party_prevalence_effects, covariate = "date_as_numeric", topics = 10, method = "continuous")
+```
+
+### Climate Hansard
+
+```{r}
+party_hansard_stm <- stm(
+    documents = climate_hansard_dfm,
+    content = ~speech_party,
+    K = NUM_TOPICS,
+    seed = 42
+)
+save(party_hansard_stm, file = paste0(DIST_PATH, "party_hansard_stm.RData"))
+```

@@ -119,35 +119,79 @@ climate_speeches_dfm <-
 
 # Testing Hypothesis 2a
 
-## Fitting a structural topic model with the `speech_party` covariate
+## Fitting a structural topic model with an interaction between the `speech_party` covariate and `date_as_numeric`
 
 ```{r}
-party_stm <- stm(
+party_interaction_stm <- stm(
     documents = climate_speeches_dfm,
-    prevalence = ~ speech_party + s(date_as_numeric),
+    prevalence = ~ speech_party * s(date_as_numeric),
     K = NUM_TOPICS,
     seed = 42
 )
-save(party_stm, file = paste0(DATA_PATH, "party_stm.RData"))
+save(party_interaction_stm, file = paste0(
+    DATA_PATH,
+    "party_interaction_stm.RData"
+))
 
 party_prevalence_effects <- estimateEffect(
-    formula = c(seq_len(NUM_TOPICS)) ~ speech_party + s(date_as_numeric),
+    formula =
+        c(seq_len(NUM_TOPICS)) ~ speech_party * s(date_as_numeric),
     stmobj = party_stm,
-    metadata = docvars(climate_speeches_dfm)
+    metadata = docvars(climate_speeches_dfm),
+    uncertainty = "None"
 )
 summary(party_prevalence_effects)
 
-plot(party_prevalence_effects, covariate = "date_as_numeric", topics = 10, method = "continuous")
-```
-
-### Climate Hansard
-
-```{r}
-party_hansard_stm <- stm(
-    documents = climate_hansard_dfm,
-    content = ~speech_party,
-    K = NUM_TOPICS,
-    seed = 42
+plot(party_prevalence_effects,
+    covariate = "date_as_numeric",
+    topics = 2,
+    method = "continuous",
+    moderator = "speech_party",
+    moderator.value = "Republican",
+    linecol = "black",
+    printlegend = FALSE,
+    ylim = c(0, 0.2)
 )
-save(party_hansard_stm, file = paste0(DIST_PATH, "party_hansard_stm.RData"))
+plot(party_prevalence_effects,
+    covariate = "date_as_numeric",
+    topics = 2,
+    method = "continuous",
+    moderator = "speech_party",
+    moderator.value = "Democrat",
+    linecol = "green",
+    printlegend = FALSE,
+    add = TRUE
+)
+plot(party_prevalence_effects,
+    covariate = "date_as_numeric",
+    topics = 2,
+    method = "continuous",
+    moderator = "speech_party",
+    moderator.value = "Labour",
+    linecol = "red",
+    type = "o",
+    lty = "dotted",
+    printlegend = FALSE,
+    add = TRUE
+)
+plot(party_prevalence_effects,
+    covariate = "date_as_numeric",
+    topics = 2,
+    method = "continuous",
+    moderator = "speech_party",
+    moderator.value = "Conservative",
+    linecol = "blue",
+    type = "o",
+    lty = "dotted",
+    printlegend = FALSE,
+    add = TRUE
+)
+legend(
+    "topright",
+    legend = c("Republican", "Democrat", "Labour", "Conservative"),
+    col = c("red", "blue", "red", "blue"),
+    lty = c("solid", "solid", "dotted", "dotted")
+)
+
+labelTopics(party_interaction_stm)
 ```

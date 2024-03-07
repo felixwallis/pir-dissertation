@@ -5,9 +5,13 @@ fontsize: 12pt
 ---
 
 This R markdown document contains the code to create a topic model of the Climate Congressional Record and Climate Hansard datasets. A topic model is used to investigate the following hypotheses:
+
 - H2a: Between 1997 and 2015, there was a stronger association between party affiliation and pro- or anti-environmental topic prevalance among US legislators climate policy speeches than among UK legislators' climate policy speeches. 
+
 - H2b: Between 1997 and 2015, the association between party affiliation and pro- or anti-environmental topic prevalance increased among US legislators' climate policy speeches, while it reduced among UK legislators' climate policy speeches. 
+
 - H4: Between 1997 and 2015, the words used in US legislators' climate policy speeches exhibited more variation between elections and non-electoral periods than those used in UK legislators' climate policy speeches.
+
 - H5: Between 1997 and 2015, the association between the topics discussed in US legislators' climate policy speeches and American climate change opinion was stronger than the association between the topics discussed in UK legislators' climate policy speeches and British climate change opinion. 
 
 # Setup
@@ -89,7 +93,6 @@ partitioned_climate_hansard <- climate_hansard |>
     )
 ```
 
-
 ## Combining the Climate Congressional Record and Climate Hansard datasets
 
 ```{r}
@@ -122,76 +125,54 @@ climate_speeches_dfm <-
 ## Fitting a structural topic model with an interaction between the `speech_party` covariate and `date_as_numeric`
 
 ```{r}
-party_interaction_stm <- stm(
-    documents = climate_speeches_dfm,
-    prevalence = ~ speech_party * s(date_as_numeric),
-    K = NUM_TOPICS,
-    seed = 42
-)
-save(party_interaction_stm, file = paste0(
-    DATA_PATH,
-    "party_interaction_stm.RData"
-))
+# party_interaction_stm <- stm(
+#     documents = climate_speeches_dfm,
+#     prevalence = ~ speech_party * s(date_as_numeric),
+#     K = NUM_TOPICS,
+#     seed = 42
+# )
+# save(party_interaction_stm, file = paste0(
+#     DATA_PATH,
+#     "party_interaction_stm.RData"
+# ))
+load(paste0(DATA_PATH, "party_interaction_stm.RData"))
+```
 
+### Investigating the model's topics
+
+```{r}
+labelTopics(party_interaction_stm)
+findThoughts(party_interaction_stm,
+    texts = climate_speeches_dfm$text,
+    n = 2
+)
+plot.STM(party_interaction_stm,
+    type = "summary",
+    labeltype = "score"
+)
+```
+
+### Visualising the model's topic, covariate relationships
+
+``` {r}
 party_prevalence_effects <- estimateEffect(
     formula =
         c(seq_len(NUM_TOPICS)) ~ speech_party * s(date_as_numeric),
-    stmobj = party_stm,
+    stmobj = party_interaction_stm,
     metadata = docvars(climate_speeches_dfm),
     uncertainty = "None"
 )
-summary(party_prevalence_effects)
+summary(party_prevalence_effects, topic = 5)
 
-plot(party_prevalence_effects,
-    covariate = "date_as_numeric",
-    topics = 2,
-    method = "continuous",
-    moderator = "speech_party",
-    moderator.value = "Republican",
-    linecol = "black",
-    printlegend = FALSE,
-    ylim = c(0, 0.2)
+plot.estimateEffect(party_prevalence_effects,
+    type = "labels",
+    covariate = "speech_party",
+    topics = 5,
+    method = "pointestimate",
+    xlim = c(0, 0.1)
 )
-plot(party_prevalence_effects,
-    covariate = "date_as_numeric",
-    topics = 2,
-    method = "continuous",
-    moderator = "speech_party",
-    moderator.value = "Democrat",
-    linecol = "green",
-    printlegend = FALSE,
-    add = TRUE
-)
-plot(party_prevalence_effects,
-    covariate = "date_as_numeric",
-    topics = 2,
-    method = "continuous",
-    moderator = "speech_party",
-    moderator.value = "Labour",
-    linecol = "red",
-    type = "o",
-    lty = "dotted",
-    printlegend = FALSE,
-    add = TRUE
-)
-plot(party_prevalence_effects,
-    covariate = "date_as_numeric",
-    topics = 2,
-    method = "continuous",
-    moderator = "speech_party",
-    moderator.value = "Conservative",
-    linecol = "blue",
-    type = "o",
-    lty = "dotted",
-    printlegend = FALSE,
-    add = TRUE
-)
-legend(
-    "topright",
-    legend = c("Republican", "Democrat", "Labour", "Conservative"),
-    col = c("red", "blue", "red", "blue"),
-    lty = c("solid", "solid", "dotted", "dotted")
-)
-
-labelTopics(party_interaction_stm)
 ```
+
+# Testing Hypothesis 2b
+
+# Testing Hypothesis 4

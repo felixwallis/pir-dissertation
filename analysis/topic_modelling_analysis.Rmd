@@ -18,6 +18,7 @@ This R markdown document contains the code to create a topic model of the Climat
 
 ```{r message=FALSE, warning=FALSE}
 library(tidyverse)
+library(janitor)
 library(stringr)
 library(quanteda)
 library(stm)
@@ -31,6 +32,15 @@ climate_congressional_record <-
     read_csv(paste0(DATA_PATH, "climate_congressional_record.csv"))
 climate_hansard <-
     read_csv(paste0(DATA_PATH, "climate_hansard.csv"))
+
+election_dates <-
+    read_csv(paste0(DATA_PATH, "election_dates_1997_2015.csv")) |>
+    clean_names() |>
+    mutate(
+        date = as.character(date) |> as.Date(date, format = "%B %d, %Y")
+    )
+
+ELECTION_PERIOD_DAYS <- 42
 ```
 
 # Data Preprocessing
@@ -46,32 +56,37 @@ partitioned_climate_congressional_record <- climate_congressional_record |>
         speech_party = party,
         text = speech
     ) |>
+    mutate(
+        across(c(first_name, family_name), str_to_title),
+        name = paste(first_name, family_name, sep = " ") |> str_to_title(),
+        speech_party = case_when(
+            speech_party == "R" ~ "Republican",
+            speech_party == "D" ~ "Democrat"
+        ),
+        speech_id = as.character(speech_id),
+        chamber = case_when(
+            chamber_x == "H" ~ "House",
+            chamber_x == "S" ~ "Senate"
+        )
+    ) |>
     select(
         speech_id,
+        name,
         first_name,
         family_name,
         speech_date,
         speech_party,
         text,
-        cleaned_stems
+        cleaned_stems,
+        chamber
     ) |>
-    filter(speech_party == "R" | speech_party == "D") |>
-    mutate(
-        name = paste(first_name, family_name, sep = " ") |>
-            str_to_title(),
-        first_name = str_to_title(first_name),
-        family_name = str_to_title(family_name),
-        speech_party = if_else(speech_party == "R", "Republican", "Democrat"),
-        speech_id = as.character(speech_id),
-        country = "USA"
-    )
+    filter(speech_party %in% c("Republican", "Democrat")) |>
+    mutate(country = "USA")
 ```
 
 ## Cleaning the Climate Hansard dataset
 
 ```{r}
-climate_hansard_party_filter <-
-    c("Conservative", "Labour", "Liberal Democrat", "Labour/Co-operative")
 partitioned_climate_hansard <- climate_hansard |>
     select(
         speech_id,
@@ -83,12 +98,16 @@ partitioned_climate_hansard <- climate_hansard |>
         text,
         cleaned_stems
     ) |>
-    filter(speech_party %in% climate_hansard_party_filter) |>
+    filter(speech_party %in% c(
+        "Conservative",
+        "Labour", "Liberal Democrat", "Labour/Co-operative"
+    )) |>
     mutate(
-        speech_party =
-            if_else(
-                speech_party == "Labour/Co-operative", "Labour", speech_party
-            ),
+        speech_party = case_when(
+            speech_party == "Labour/Co-operative" ~ "Labour",
+            TRUE ~ speech_party
+        ),
+        chamber = "House of Commons",
         country = "UK"
     )
 ```
@@ -103,6 +122,39 @@ complete_climate_speeches <- bind_rows(
     arrange(speech_date) |>
     mutate(
         date_as_numeric = as.numeric(speech_date)
+    )
+```
+
+### Record if a speech was made within 6 weeks of an election
+
+```{r}
+in_election_period <- function(row) {
+    speech_date <- row$speech_date
+    chamber <- row$chamber
+
+    if (chamber == "House" | chamber == "Senate") {
+        house_election_dates <- election_dates |>
+            filter(election_type == "US Congressional") |>
+            pull(date)
+        return(
+            any(abs(house_election_dates - speech_date) <= ELECTION_PERIOD_DAYS)
+        )
+    } else if (chamber == "House of Commons") {
+        uk_election_dates <- election_dates |>
+            filter(election_type == "UK General") |>
+            pull(date)
+        return(
+            any(abs(uk_election_dates - speech_date) <= ELECTION_PERIOD_DAYS)
+        )
+    }
+}
+
+complete_climate_speeches <- complete_climate_speeches |>
+    mutate(
+        in_election_period = map_lgl(
+            seq_len(nrow(complete_climate_speeches)),
+            ~ in_election_period(complete_climate_speeches[.x, ])
+        )
     )
 ```
 
@@ -246,3 +298,6 @@ for (i in seq_len(NUM_TOPICS)) {
     )
 }
 ```
+
+## Testing Hypothesis 4
+

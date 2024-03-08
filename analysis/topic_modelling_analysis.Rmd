@@ -50,8 +50,7 @@ ELECTION_PERIOD_DAYS <- 42
 ```{r}
 partitioned_climate_congressional_record <- climate_congressional_record |>
     rename(
-        first_name = first_name_x,
-        family_name = last_name_x,
+        family_name = last_name,
         speech_date = date,
         speech_party = party,
         text = speech
@@ -65,8 +64,8 @@ partitioned_climate_congressional_record <- climate_congressional_record |>
         ),
         speech_id = as.character(speech_id),
         chamber = case_when(
-            chamber_x == "H" ~ "House",
-            chamber_x == "S" ~ "Senate"
+            chamber == "H" ~ "House",
+            chamber == "S" ~ "Senate"
         )
     ) |>
     select(
@@ -177,16 +176,16 @@ climate_speeches_dfm <-
 ## Fitting a structural topic model with an interaction between the `speech_party` and `date_as_numeric` covariates
 
 ```{r}
-# party_interaction_stm <- stm(
-#     documents = climate_speeches_dfm,
-#     prevalence = ~ speech_party * s(date_as_numeric),
-#     K = NUM_TOPICS,
-#     seed = 42
-# )
-# save(party_interaction_stm, file = paste0(
-#     DATA_PATH,
-#     "party_interaction_stm.RData"
-# ))
+party_interaction_stm <- stm(
+    documents = climate_speeches_dfm,
+    prevalence = ~ speech_party * s(date_as_numeric),
+    K = NUM_TOPICS,
+    seed = 42
+)
+save(party_interaction_stm, file = paste0(
+    DATA_PATH,
+    "party_interaction_stm.RData"
+))
 load(paste0(DATA_PATH, "party_interaction_stm.RData"))
 ```
 
@@ -262,7 +261,7 @@ set_plot_parameters <- function(
         moderator.value = mod_value,
         xlab = "Date",
         ylab = "Topic Prevalence",
-        ylim = c(0, 0.15),
+        ylim = c(0, 0.2),
         main = paste0("US Topic ", topic, " Prevalence: ", topic_labels[topic]),
         linecol = line_colour,
         printlegend = FALSE,
@@ -299,6 +298,8 @@ for (i in seq_len(NUM_TOPICS)) {
         lty = 1
     )
 }
+layout(1)
+par(mar = c(5.1, 4.1, 4.1, 2.1), oma = c(0, 0, 0, 0))
 ```
 
 # Testing Hypothesis 4
@@ -308,18 +309,18 @@ for (i in seq_len(NUM_TOPICS)) {
 ### US STM
 
 ```{r}
-# us_election_period_stm <- stm(
-#     documents = dfm_subset(
-#         climate_speeches_dfm, country == "USA"
-#     ),
-#     content = ~in_election_period,
-#     K = NUM_TOPICS,
-#     seed = 42
-# )
-# save(us_election_period_stm, file = paste0(
-#     DATA_PATH,
-#     "us_election_period_stm.RData"
-# ))
+us_election_period_stm <- stm(
+    documents = dfm_subset(
+        climate_speeches_dfm, country == "USA"
+    ),
+    content = ~in_election_period,
+    K = NUM_TOPICS,
+    seed = 42
+)
+save(us_election_period_stm, file = paste0(
+    DATA_PATH,
+    "us_election_period_stm.RData"
+))
 load(paste0(DATA_PATH, "us_election_period_stm.RData"))
 ```
 
@@ -343,18 +344,18 @@ us_topic_labels <-
 ### UK STM
 
 ```{r}
-# uk_election_period_stm <- stm(
-#     documents = dfm_subset(
-#         climate_speeches_dfm, country == "UK"
-#     ),
-#     content = ~in_election_period,
-#     K = NUM_TOPICS,
-#     seed = 42
-# )
-# save(uk_election_period_stm, file = paste0(
-#     DATA_PATH,
-#     "uk_election_period_stm.RData"
-# ))
+uk_election_period_stm <- stm(
+    documents = dfm_subset(
+        climate_speeches_dfm, country == "UK"
+    ),
+    content = ~in_election_period,
+    K = NUM_TOPICS,
+    seed = 42
+)
+save(uk_election_period_stm, file = paste0(
+    DATA_PATH,
+    "uk_election_period_stm.RData"
+))
 load(paste0(DATA_PATH, "uk_election_period_stm.RData"))
 ```
 

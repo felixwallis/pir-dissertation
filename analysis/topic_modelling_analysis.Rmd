@@ -308,18 +308,18 @@ for (i in seq_len(NUM_TOPICS)) {
 ### US STM
 
 ```{r}
-us_election_period_stm <- stm(
-    documents = dfm_subset(
-        climate_speeches_dfm, country == "USA"
-    ),
-    content = ~in_election_period,
-    K = NUM_TOPICS,
-    seed = 42
-)
-save(us_election_period_stm, file = paste0(
-    DATA_PATH,
-    "us_election_period_stm.RData"
-))
+# us_election_period_stm <- stm(
+#     documents = dfm_subset(
+#         climate_speeches_dfm, country == "USA"
+#     ),
+#     content = ~in_election_period,
+#     K = NUM_TOPICS,
+#     seed = 42
+# )
+# save(us_election_period_stm, file = paste0(
+#     DATA_PATH,
+#     "us_election_period_stm.RData"
+# ))
 load(paste0(DATA_PATH, "us_election_period_stm.RData"))
 ```
 
@@ -343,18 +343,18 @@ us_topic_labels <-
 ### UK STM
 
 ```{r}
-uk_election_period_stm <- stm(
-    documents = dfm_subset(
-        climate_speeches_dfm, country == "UK"
-    ),
-    content = ~in_election_period,
-    K = NUM_TOPICS,
-    seed = 42
-)
-save(uk_election_period_stm, file = paste0(
-    DATA_PATH,
-    "uk_election_period_stm.RData"
-))
+# uk_election_period_stm <- stm(
+#     documents = dfm_subset(
+#         climate_speeches_dfm, country == "UK"
+#     ),
+#     content = ~in_election_period,
+#     K = NUM_TOPICS,
+#     seed = 42
+# )
+# save(uk_election_period_stm, file = paste0(
+#     DATA_PATH,
+#     "uk_election_period_stm.RData"
+# ))
 load(paste0(DATA_PATH, "uk_election_period_stm.RData"))
 ```
 

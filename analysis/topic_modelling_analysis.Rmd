@@ -125,7 +125,7 @@ complete_climate_speeches <- bind_rows(
     )
 ```
 
-### Record if a speech was made within 6 weeks of an election
+### Recording if a speech was made within 6 weeks of an election
 
 ```{r}
 in_election_period <- function(row) {
@@ -172,9 +172,9 @@ climate_speeches_dfm <-
     dfm()
 ```
 
-# Fitting a structural topic model with an interaction between the `speech_party` covariate and `date_as_numeric`
+# Testing Hypothesis 2
 
-## Testing Hypothesis 2a
+## Fitting a structural topic model with an interaction between the `speech_party` and `date_as_numeric` covariates
 
 ```{r}
 # party_interaction_stm <- stm(
@@ -190,7 +190,7 @@ climate_speeches_dfm <-
 load(paste0(DATA_PATH, "party_interaction_stm.RData"))
 ```
 
-### Investigating the model's topics
+## Investigating the model's topics
 
 ```{r}
 labelTopics(party_interaction_stm)
@@ -207,6 +207,8 @@ score_topic_labels <- labelTopics(party_interaction_stm)$score
 topic_labels <-
     apply(score_topic_labels, 1, function(x) paste(x, collapse = "_"))
 ```
+
+## Testing Hypothesis 2a
 
 ### Estimating the effect of `speech_party`, `date_as_numeric`, and their interaction on topic prevalence
 
@@ -299,5 +301,106 @@ for (i in seq_len(NUM_TOPICS)) {
 }
 ```
 
-## Testing Hypothesis 4
+# Testing Hypothesis 4
 
+## Fititng a US and a UK structural topic model, allowing vocabulary to vary by `in_election_period`
+
+### US STM
+
+```{r}
+us_election_period_stm <- stm(
+    documents = dfm_subset(
+        climate_speeches_dfm, country == "USA"
+    ),
+    content = ~in_election_period,
+    K = NUM_TOPICS,
+    seed = 42
+)
+save(us_election_period_stm, file = paste0(
+    DATA_PATH,
+    "us_election_period_stm.RData"
+))
+load(paste0(DATA_PATH, "us_election_period_stm.RData"))
+```
+
+### Investigating the US model's topics
+
+```{r}
+labelTopics(us_election_period_stm)
+findThoughts(us_election_period_stm,
+    texts = dfm_subset(climate_speeches_dfm, country == "USA")$text,
+    n = 2
+)
+plot.STM(us_election_period_stm,
+    type = "summary"
+)
+
+us_topics_topic_labels <- labelTopics(us_election_period_stm)$topics
+us_topic_labels <-
+    apply(us_topics_topic_labels, 1, function(x) paste(x, collapse = "_"))
+```
+
+### UK STM
+
+```{r}
+uk_election_period_stm <- stm(
+    documents = dfm_subset(
+        climate_speeches_dfm, country == "UK"
+    ),
+    content = ~in_election_period,
+    K = NUM_TOPICS,
+    seed = 42
+)
+save(uk_election_period_stm, file = paste0(
+    DATA_PATH,
+    "uk_election_period_stm.RData"
+))
+load(paste0(DATA_PATH, "uk_election_period_stm.RData"))
+```
+
+### Investigating the UK model's topics
+
+```{r}
+labelTopics(uk_election_period_stm)
+findThoughts(uk_election_period_stm,
+    texts = dfm_subset(climate_speeches_dfm, country == "UK")$text,
+    n = 2
+)
+plot.STM(uk_election_period_stm,
+    type = "summary"
+)
+
+uk_topics_topic_labels <- labelTopics(uk_election_period_stm)$topics
+uk_topic_labels <-
+    apply(uk_topics_topic_labels, 1, function(x) paste(x, collapse = "_"))
+```
+
+## Visualising how vocabulary varies by `in_election_period`
+
+### US STM
+
+```{r}
+par(mar = c(3, 5, 3, 5), oma = c(0, 5, 2, 0))
+layout(matrix(seq_len(NUM_TOPICS), ncol = 2, byrow = TRUE))
+for (i in seq_len(NUM_TOPICS)) {
+    plot.STM(us_election_period_stm,
+        type = "perspectives",
+        topics = i,
+        main = paste0("US Topic ", i, ": ", us_topic_labels[i])
+    )
+}
+```
+
+### UK STM
+
+```{r}
+par(mar = c(3, 5, 3, 5), oma = c(0, 5, 2, 0))
+layout(matrix(seq_len(NUM_TOPICS), ncol = 2, byrow = TRUE))
+for (i in seq_len(NUM_TOPICS)) {
+    plot.STM(uk_election_period_stm,
+        type = "perspectives",
+        topics = i,
+        main = paste0("UK Topic ", i, ": ", uk_topic_labels[i])
+    )
+}
+```

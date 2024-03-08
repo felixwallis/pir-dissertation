@@ -125,16 +125,16 @@ climate_speeches_dfm <-
 ## Testing Hypothesis 2a
 
 ```{r}
-party_interaction_stm <- stm(
-    documents = climate_speeches_dfm,
-    prevalence = ~ speech_party * s(date_as_numeric),
-    K = NUM_TOPICS,
-    seed = 42
-)
-save(party_interaction_stm, file = paste0(
-    DATA_PATH,
-    "party_interaction_stm.RData"
-))
+# party_interaction_stm <- stm(
+#     documents = climate_speeches_dfm,
+#     prevalence = ~ speech_party * s(date_as_numeric),
+#     K = NUM_TOPICS,
+#     seed = 42
+# )
+# save(party_interaction_stm, file = paste0(
+#     DATA_PATH,
+#     "party_interaction_stm.RData"
+# ))
 load(paste0(DATA_PATH, "party_interaction_stm.RData"))
 ```
 
@@ -195,12 +195,14 @@ par(mar = c(5.1, 4.1, 4.1, 2.1), oma = c(0, 0, 0, 0))
 ### Visualising how topic prevalance varies by party over time
 
 ```{r}
-set_plot_parameters <- function(topic, mod_value, line_colour, add = FALSE) {
+set_plot_parameters <- function(
+    topic, mod_value, line_colour,
+    add = FALSE, model = party_interaction_stm) {
     plot.estimateEffect(
         party_prevalence_effects,
         topic = topic,
         covariate = "date_as_numeric",
-        model = party_interaction_stm,
+        model = model,
         method = "continuous",
         moderator = "speech_party",
         moderator.value = mod_value,

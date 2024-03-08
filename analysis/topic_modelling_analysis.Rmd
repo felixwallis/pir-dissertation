@@ -120,9 +120,9 @@ climate_speeches_dfm <-
     dfm()
 ```
 
-# Testing Hypothesis 2a
+# Fitting a structural topic model with an interaction between the `speech_party` covariate and `date_as_numeric`
 
-## Fitting a structural topic model with an interaction between the `speech_party` covariate and `date_as_numeric`
+## Testing Hypothesis 2a
 
 ```{r}
 party_interaction_stm <- stm(
@@ -156,9 +156,9 @@ topic_labels <-
     apply(score_topic_labels, 1, function(x) paste(x, collapse = "_"))
 ```
 
-### Visualising the model's topic, covariate relationships
+### Estimating the effect of `speech_party`, `date_as_numeric`, and their interaction on topic prevalence
 
-``` {r}
+```{r}
 party_prevalence_effects <- estimateEffect(
     formula =
         c(seq_len(NUM_TOPICS)) ~ speech_party * s(date_as_numeric),
@@ -166,7 +166,12 @@ party_prevalence_effects <- estimateEffect(
     metadata = docvars(climate_speeches_dfm),
     uncertainty = "None"
 )
+summary(party_prevalence_effects)
+```
 
+### Visualising how topic prevalance varies by party
+
+```{r}
 par(mar = c(3, 5, 3, 5), oma = c(0, 5, 2, 0))
 layout(matrix(seq_len(NUM_TOPICS), ncol = 2, byrow = TRUE))
 for (i in seq_len(NUM_TOPICS)) {
@@ -177,12 +182,65 @@ for (i in seq_len(NUM_TOPICS)) {
         topics = i,
         method = "pointestimate",
         xlab = "Topic Prevalence",
-        main = topic_labels[i]
+        main = paste0("Topic ", i, ": ", topic_labels[i])
     )
 }
 title("Topic Prevalence by Party", outer = TRUE)
+layout(1)
+par(mar = c(5.1, 4.1, 4.1, 2.1), oma = c(0, 0, 0, 0))
 ```
 
-# Testing Hypothesis 2b
+## Testing Hypothesis 2b
 
-# Testing Hypothesis 4
+### Visualising how topic prevalance varies by party over time
+
+```{r}
+set_plot_parameters <- function(topic, mod_value, line_colour, add = FALSE) {
+    plot.estimateEffect(
+        party_prevalence_effects,
+        topic = topic,
+        covariate = "date_as_numeric",
+        model = party_interaction_stm,
+        method = "continuous",
+        moderator = "speech_party",
+        moderator.value = mod_value,
+        xlab = "Date",
+        ylab = "Topic Prevalence",
+        ylim = c(0, 0.15),
+        main = paste0("US Topic ", topic, " Prevalence: ", topic_labels[topic]),
+        linecol = line_colour,
+        printlegend = FALSE,
+        add = add
+    )
+}
+
+par(mar = c(3, 5, 3, 5), oma = c(0, 5, 2, 0))
+layout(matrix(seq_len(NUM_TOPICS), ncol = 2, byrow = TRUE))
+
+for (i in seq_len(NUM_TOPICS)) {
+    set_plot_parameters(i, "Republican", "red")
+    set_plot_parameters(1, "Democrat", "blue", TRUE)
+    legend("topright",
+        legend = c(
+            "Republican",
+            "Democrat"
+        ), col = c("red", "blue"),
+        lty = 1
+    )
+}
+
+for (i in seq_len(NUM_TOPICS)) {
+    set_plot_parameters(i, "Conservative", "blue")
+    set_plot_parameters(1, "Labour", "red", TRUE)
+    set_plot_parameters(1, "Liberal Democrat", "orange", TRUE)
+    legend("topright",
+        legend = c(
+            "Conservative",
+            "Labour",
+            "Lib Dem"
+        ),
+        col = c("blue", "red", "orange"),
+        lty = 1
+    )
+}
+```

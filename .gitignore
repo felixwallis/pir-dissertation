@@ -14,7 +14,8 @@ analysis/data
 hansard-in-full/hansard_in_full.csv
 hansard_with_mp_details.csv
 people.csv
-cr_embeddings_12_300_1.rds
+congressional_record_embeddings_12_300_1.rds
+hansard_embeddings_12_300_1.rds
 
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/

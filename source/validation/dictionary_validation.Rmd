@@ -1,0 +1,63 @@
+---
+title: "Dictionary Validation"
+output: pdf_document
+fontsize: 12pt
+---
+
+This R markdown document contains the code to validate the climate change dictionary used to identify climate change related speeches in the Congressional Record and Hansard. 
+
+# Setup
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(quanteda)
+library(caret)
+
+DATA_PATH <- "data/"
+DIST_PATH <- "dist/"
+
+CONGRESSIONAL_RECORD_PATH <- "../analysis/data/"
+HANSARD_PATH <- "../analysis/data/"
+```
+
+# Labelling climate change speeches
+
+To validate the climate change dictionary, we first need to create a labelled dataset of climate change speeches from Hansard and the Congressional Record. To do this, we first take a random selection of speeches from Hansard made in 2008. Selecting speeches from 2008 means that the sample is not representative of the entire dataset. However, given that it was the year the UK Climate Change Act was passed, it ensures we find some positive examples of climate change speeches. After making this random selection, we do the same for the Congressional Record, instead selecting speeches from 2009. 2009 was the year that the American Clean Energy and Security Act stalled in the Senate. 
+
+## Sampling Hansard and the Congressional Record
+
+### Loading Hansard
+
+```{r}
+hansard <- read_csv(paste0(HANSARD_PATH, "hansard.csv")) |>
+    filter(year == 2008)
+```
+
+### Randomly selecting 500 speeches
+
+```{r}
+set.seed(42)
+hansard_sample <- hansard |>
+    sample_n(500)
+write_csv(hansard_sample, paste0(DATA_PATH, "hansard_sample.csv"))
+```
+
+### Loading the Congressional Record
+
+```{r}
+congressional_record <-
+    read_csv(paste0(CONGRESSIONAL_RECORD_PATH, "congressional_record.csv")) |>
+    filter(year == 2009)
+```
+
+### Randomly selecting 500 speeches
+
+```{r}
+set.seed(42)
+congressional_record_sample <- congressional_record |>
+    sample_n(500)
+write_csv(
+    congressional_record_sample,
+    paste0(DATA_PATH, "congressional_record_sample.csv")
+)
+```

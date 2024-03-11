@@ -18,6 +18,7 @@ DIST_PATH <- "dist/"
 
 CONGRESSIONAL_RECORD_PATH <- "../analysis/data/"
 HANSARD_PATH <- "../analysis/data/"
+DICITIONARIES_PATH <- "../dictionaries/dist/"
 ```
 
 # Labelling climate change speeches
@@ -28,14 +29,14 @@ To validate the climate change dictionary, we first need to create a labelled da
 
 ### Loading Hansard
 
-```{r}
+```{r message=FALSE}
 hansard <- read_csv(paste0(HANSARD_PATH, "hansard.csv")) |>
     filter(year == 2008)
 ```
 
 ### Randomly selecting 500 speeches
 
-```{r}
+```{r message=FALSE}
 set.seed(42)
 hansard_sample <- hansard |>
     sample_n(500)
@@ -44,7 +45,7 @@ write_csv(hansard_sample, paste0(DATA_PATH, "hansard_sample.csv"))
 
 ### Loading the Congressional Record
 
-```{r}
+```{r message=FALSE}
 congressional_record <-
     read_csv(paste0(CONGRESSIONAL_RECORD_PATH, "congressional_record.csv")) |>
     filter(year == 2009)
@@ -52,12 +53,161 @@ congressional_record <-
 
 ### Randomly selecting 500 speeches
 
-```{r}
+```{r message=FALSE}
 set.seed(42)
 congressional_record_sample <- congressional_record |>
     sample_n(500)
 write_csv(
     congressional_record_sample,
     paste0(DATA_PATH, "congressional_record_sample.csv")
+)
+```
+
+At this point, human coding is used to label the speeches as either climate change related or not.
+
+# Testing dictionary performance 
+
+We can now test the performance of the climate change dictionary on the labelled dataset based on the rules used in `filtering.ipynb`.
+
+## Test set preprocessing
+
+### Congressional Record
+
+```{r message=FALSE}
+classified_congressional_record <- read_csv(
+    paste0(DATA_PATH, "classified_congressional_record_sample.csv")
+)
+
+classified_congressional_record_corpus <-
+    corpus(classified_congressional_record, text_field = "cleaned_stems")
+
+classified_congressional_record_dfm <-
+    classified_congressional_record_corpus |>
+    tokens() |>
+    dfm()
+```
+
+### Hansard
+
+```{r message=FALSE}
+classified_hansard <-
+    read_csv(paste0(DATA_PATH, "classified_hansard_sample.csv"))
+
+classified_hansard_corpus <-
+    corpus(classified_hansard, text_field = "cleaned_stems")
+
+classified_hansard_dfm <-
+    classified_hansard_corpus |>
+    tokens() |>
+    dfm()
+```
+
+## Validating performance
+
+### Performance statistics function
+
+```{r message=FALSE}
+calculate_confusion_statistics <- function(dfm, dictionary, prop_threshold) {
+    # Perform the dictionary lookup on the dfm
+    dict_scores <- dfm_lookup(dfm, dictionary = dictionary)
+    dict_scores <- convert(dict_scores, to = "data.frame")
+
+    # Add the calculated columns to the original data
+    df <- as.data.frame(docvars(dfm))
+    df <- df %>%
+        mutate(
+            num_climate_stems = dict_scores$climate_stems,
+            prop_climate_stems = num_climate_stems / stem_count
+        ) %>%
+        mutate(
+            predicted_climate_change_content = if_else(
+                prop_climate_stems > prop_threshold,
+                TRUE,
+                FALSE
+            )
+        )
+
+    # Create the confusion matrix
+    confusion_table <- table(
+        predicted_classification = df$predicted_climate_change_content,
+        actual_classification = df$climate_change_content
+    )
+
+    # Compute confusion matrix statistics
+    confusion_statistics <- confusionMatrix(confusion_table, positive = "TRUE")
+
+    return(confusion_statistics)
+}
+```
+
+### `climate_stems` dictionary
+
+**Initialising the dictionary**
+
+```{r message=FALSE}
+climate_stems <-
+    read_csv(paste0(DICITIONARIES_PATH, "climate_stems.csv"))
+
+climate_stems_list <- list(
+    climate_stems = climate_stems$stem
+)
+
+climate_stems_dictionary <-
+    dictionary(climate_stems_list)
+```
+
+**Congressional Record**
+
+```{r message=FALSE}
+calculate_confusion_statistics(
+    classified_congressional_record_dfm,
+    climate_stems_dictionary,
+    0.2
+)
+```
+
+**Hansard**
+
+```{r message=FALSE}
+calculate_confusion_statistics(
+    classified_hansard_dfm,
+    climate_stems_dictionary,
+    0.2
+)
+```
+
+### `shortened_climate_stems` dictionary
+
+**Initialising the dictionary**
+
+```{r message=FALSE}
+shortened_climate_stems <-
+    read_csv(paste0(DICITIONARIES_PATH, "shortened_climate_stems.csv"))
+
+shortened_climate_stems_list <- list(
+    climate_stems = shortened_climate_stems$stem
+)
+
+shortened_climate_stems_dictionary <-
+    dictionary(shortened_climate_stems_list)
+```
+
+**Congressional Record**
+
+```{r message=FALSE}
+calculate_confusion_statistics(
+    classified_congressional_record_dfm,
+    shortened_climate_stems_dictionary,
+    0.015
+)
+```
+
+**Hansard**
+
+```{r message=FALSE}
+calculate_confusion_statistics(
+    classified_hansard_dfm,
+    shortened_climate_stems_dictionary,
+    0.04
 )
 ```

@@ -8,7 +8,7 @@ This R markdown document contains the code to validate the climate change dictio
 
 # Setup
 
-```{r setup, include=FALSE}
+```{r setup, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(quanteda)
 library(caret)
@@ -198,7 +198,7 @@ shortened_climate_stems_dictionary <-
 calculate_confusion_statistics(
     classified_congressional_record_dfm,
     shortened_climate_stems_dictionary,
-    0.015
+    0.02
 )
 ```
 

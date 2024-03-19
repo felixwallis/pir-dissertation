@@ -261,7 +261,7 @@ set_plot_parameters <- function(
         moderator.value = mod_value,
         xlab = "Date",
         ylab = "Topic Prevalence",
-        ylim = c(0, 0.2),
+        ylim = c(0, 0.5),
         main = paste0("US Topic ", topic, " Prevalence: ", topic_labels[topic]),
         linecol = line_colour,
         printlegend = FALSE,

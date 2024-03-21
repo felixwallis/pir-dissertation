@@ -6,13 +6,11 @@ fontsize: 12pt
 
 This R markdown document contains the code to create a topic model of the Climate Congressional Record and Climate Hansard datasets. A topic model is used to investigate the following hypotheses:
 
-- H2a: Between 1997 and 2015, there was a stronger association between party affiliation and pro- or anti-environmental topic prevalance among US legislators climate policy speeches than among UK legislators' climate policy speeches. 
+- H3: Between 1997 and 2015, there was a stronger association between party affiliation and pro- or anti-environmental topic prevalence among US legislators’ climate policy speeches than among UK legislators’ speeches. 
 
-- H2b: Between 1997 and 2015, the association between party affiliation and pro- or anti-environmental topic prevalance increased among US legislators' climate policy speeches, while it reduced among UK legislators' climate policy speeches. 
+- H4: Between 1997 and 2015, the words used in US legislators’ climate policy speeches exhibited more variation between elections and non-electoral periods than in UK speeches. 
 
-- H4: Between 1997 and 2015, the words used in US legislators' climate policy speeches exhibited more variation between elections and non-electoral periods than those used in UK legislators' climate policy speeches.
-
-- H5: Between 1997 and 2015, the association between the topics discussed in US legislators' climate policy speeches and American climate change opinion was stronger than the association between the topics discussed in UK legislators' climate policy speeches and British climate change opinion. 
+- H5: During this period, the association between pro- or anti-environmental topic prevalence and public opinion was stronger in US legislators’ climate policy speeches than in UK speeches. 
 
 # Setup
 
@@ -120,7 +118,14 @@ complete_climate_speeches <- bind_rows(
 ) |>
     arrange(speech_date) |>
     mutate(
-        date_as_numeric = as.numeric(speech_date)
+        date_as_numeric = as.numeric(speech_date),
+        affiliation = case_when(
+            speech_party %in% c("Democrat", "Labour") ~ "Left",
+            speech_party %in% c(
+                "Republican", "Conservative", "Liberal Democrat"
+            ) ~ "Right",
+            TRUE ~ NA_character_
+        )
     )
 ```
 
@@ -171,14 +176,14 @@ climate_speeches_dfm <-
     dfm()
 ```
 
-# Testing Hypothesis 2
+# Testing Hypothesis 3
 
-## Fitting a structural topic model with an interaction between the `speech_party` and `date_as_numeric` covariates
+## Fitting a structural topic model with an interaction between `affiliation` and `county`, and `date_as_numeric` added as a covariate
 
 ```{r}
 party_interaction_stm <- stm(
     documents = climate_speeches_dfm,
-    prevalence = ~ speech_party * s(date_as_numeric),
+    prevalence = ~ affiliation * country + s(date_as_numeric),
     K = NUM_TOPICS,
     seed = 42
 )
@@ -207,14 +212,14 @@ topic_labels <-
     apply(score_topic_labels, 1, function(x) paste(x, collapse = "_"))
 ```
 
-## Testing Hypothesis 2a
+## Testing Hypothesis 3
 
-### Estimating the effect of `speech_party`, `date_as_numeric`, and their interaction on topic prevalence
+### Estimating the effect of `affiliation`, `country`, and their interaction on topic prevalence and adding a covariate for `date_as_numeric`
 
 ```{r}
 party_prevalence_effects <- estimateEffect(
     formula =
-        c(seq_len(NUM_TOPICS)) ~ speech_party * s(date_as_numeric),
+        c(seq_len(NUM_TOPICS)) ~ affiliation * country + s(date_as_numeric),
     stmobj = party_interaction_stm,
     metadata = docvars(climate_speeches_dfm),
     uncertainty = "None"
@@ -222,7 +227,7 @@ party_prevalence_effects <- estimateEffect(
 summary(party_prevalence_effects)
 ```
 
-### Visualising how topic prevalance varies by party
+### Visualising how topic prevalance varies by party affiliation
 
 ```{r}
 par(mar = c(3, 5, 3, 5), oma = c(0, 5, 2, 0))
@@ -231,73 +236,14 @@ for (i in seq_len(NUM_TOPICS)) {
     plot.estimateEffect(
         party_prevalence_effects,
         type = "labels",
-        covariate = "speech_party",
+        covariate = "affiliation",
         topics = i,
         method = "pointestimate",
         xlab = "Topic Prevalence",
         main = paste0("Topic ", i, ": ", topic_labels[i])
     )
 }
-title("Topic Prevalence by Party", outer = TRUE)
-layout(1)
-par(mar = c(5.1, 4.1, 4.1, 2.1), oma = c(0, 0, 0, 0))
-```
-
-## Testing Hypothesis 2b
-
-### Visualising how topic prevalance varies by party over time
-
-```{r}
-set_plot_parameters <- function(
-    topic, mod_value, line_colour,
-    add = FALSE, model = party_interaction_stm) {
-    plot.estimateEffect(
-        party_prevalence_effects,
-        topic = topic,
-        covariate = "date_as_numeric",
-        model = model,
-        method = "continuous",
-        moderator = "speech_party",
-        moderator.value = mod_value,
-        xlab = "Date",
-        ylab = "Topic Prevalence",
-        ylim = c(0, 0.5),
-        main = paste0("US Topic ", topic, " Prevalence: ", topic_labels[topic]),
-        linecol = line_colour,
-        printlegend = FALSE,
-        add = add
-    )
-}
-
-par(mar = c(3, 5, 3, 5), oma = c(0, 5, 2, 0))
-layout(matrix(seq_len(NUM_TOPICS), ncol = 2, byrow = TRUE))
-
-for (i in seq_len(NUM_TOPICS)) {
-    set_plot_parameters(i, "Republican", "red")
-    set_plot_parameters(1, "Democrat", "blue", TRUE)
-    legend("topright",
-        legend = c(
-            "Republican",
-            "Democrat"
-        ), col = c("red", "blue"),
-        lty = 1
-    )
-}
-
-for (i in seq_len(NUM_TOPICS)) {
-    set_plot_parameters(i, "Conservative", "blue")
-    set_plot_parameters(1, "Labour", "red", TRUE)
-    set_plot_parameters(1, "Liberal Democrat", "orange", TRUE)
-    legend("topright",
-        legend = c(
-            "Conservative",
-            "Labour",
-            "Lib Dem"
-        ),
-        col = c("blue", "red", "orange"),
-        lty = 1
-    )
-}
+title("Topic Prevalence by Affiliation", outer = TRUE)
 layout(1)
 par(mar = c(5.1, 4.1, 4.1, 2.1), oma = c(0, 0, 0, 0))
 ```

@@ -58,7 +58,8 @@ partitioned_climate_congressional_record <- climate_congressional_record |>
         name = paste(first_name, family_name, sep = " ") |> str_to_title(),
         speech_party = case_when(
             speech_party == "R" ~ "Republican",
-            speech_party == "D" ~ "Democrat"
+            speech_party == "D" ~ "Democrat",
+            TRUE ~ "Other"
         ),
         speech_id = as.character(speech_id),
         chamber = case_when(
@@ -77,7 +78,6 @@ partitioned_climate_congressional_record <- climate_congressional_record |>
         cleaned_stems,
         chamber
     ) |>
-    filter(speech_party %in% c("Republican", "Democrat")) |>
     mutate(country = "USA")
 ```
 
@@ -95,10 +95,7 @@ partitioned_climate_hansard <- climate_hansard |>
         text,
         cleaned_stems
     ) |>
-    filter(speech_party %in% c(
-        "Conservative",
-        "Labour", "Liberal Democrat", "Labour/Co-operative"
-    )) |>
+    filter(!is.na(speech_party)) |>
     mutate(
         speech_party = case_when(
             speech_party == "Labour/Co-operative" ~ "Labour",
@@ -106,6 +103,12 @@ partitioned_climate_hansard <- climate_hansard |>
         ),
         chamber = "House of Commons",
         country = "UK"
+    ) |>
+    mutate(
+        speech_party = if_else(speech_party %in% c("Conservative", "Labour"),
+            speech_party,
+            "Other"
+        )
     )
 ```
 
@@ -122,9 +125,9 @@ complete_climate_speeches <- bind_rows(
         affiliation = case_when(
             speech_party %in% c("Democrat", "Labour") ~ "Left",
             speech_party %in% c(
-                "Republican", "Conservative", "Liberal Democrat"
+                "Republican", "Conservative"
             ) ~ "Right",
-            TRUE ~ NA_character_
+            TRUE ~ "Neutral"
         )
     )
 ```

@@ -62,10 +62,11 @@ climate_congressional_record <- climate_congressional_record |>
         first_name,
         family_name,
         speech_date,
+        year,
         speech_party,
         text,
         cleaned_stems,
-        chamber
+        chamber,
     ) |>
     mutate(country = "USA")
 ```
@@ -81,6 +82,7 @@ climate_hansard <- climate_hansard |>
         family_name,
         speech_date,
         speech_party,
+        year,
         text,
         cleaned_stems
     ) |>
@@ -106,7 +108,8 @@ complete_climate_speeches <- bind_rows(
                 "Republican", "Conservative"
             ) ~ "Right"
         )
-    )
+    ) |>
+    filter(year == 2015)
 ```
 
 ### Recording if a speech was made within 60 days of an election
@@ -157,3 +160,19 @@ climate_speeches_dfm <-
 ```
 
 # Testing Hypothesis 2
+
+## Using `searchK` to find the optimal number of topics for a topic model with an interaction between `affiliation` and `country`, with `date_as_numeric` added as a covariate
+
+```{r}
+storage <- searchK(
+    documents = climate_speeches_dfm,
+    K = c(7, 10),
+    prevalence = ~ affiliation * country + s(date_as_numeric),
+    data = complete_climate_speeches,
+    N = floor(0.1 * nrow(complete_climate_speeches)),
+    cores = 4,
+    verbose = TRUE
+)
+
+plot(storage)
+```

@@ -108,8 +108,7 @@ complete_climate_speeches <- bind_rows(
                 "Republican", "Conservative"
             ) ~ "Right"
         )
-    ) |>
-    filter(year == 2015)
+    )
 ```
 
 ### Recording if a speech was made within 60 days of an election
@@ -145,7 +144,7 @@ complete_climate_speeches <- complete_climate_speeches |>
     )
 ```
 
-## Creating a Climate Speeches dfm
+## Creating a Climate Speeches DFM
 
 ```{r}
 climate_speeches_corpus <-
@@ -212,12 +211,29 @@ ggplot(search_k_results, aes(x = K, y = value, color = variable)) +
         y = "Value",
         title = "Plot of Model Diagnostics by K"
     ) +
+    scale_x_continuous(breaks = seq(10, 20, by = 2)) +
     theme(
         legend.position = "none",
         panel.grid.minor = element_blank()
     )
 ```
 
+## Fitting an STM with the optimal number of topics
+
+```{r}
+party_interaction_stm <- stm(
+    documents = climate_speeches_dfm,
+    K = 18,
+    prevalence = ~ affiliation * country + s(date_as_numeric),
+    data = complete_climate_speeches,
+    init.type = "Spectral",
+    verbose = TRUE
+)
+save(
+    party_interaction_stm,
+    file = paste0(DATA_PATH, "party_interaction_stm.RData")
+)
+```
 
 # Testing Hypothesis 3
 
@@ -272,8 +288,26 @@ ggplot(search_k_results, aes(x = K, y = value, color = variable)) +
         y = "Value",
         title = "Plot of Model Diagnostics by K"
     ) +
+    scale_x_continuous(breaks = seq(10, 20, by = 2)) +
     theme(
         legend.position = "none",
         panel.grid.minor = element_blank()
     )
+```
+
+## Fitting an STM with the optimal number of topics
+
+```{r}
+election_interaction_stm <- stm(
+    documents = climate_speeches_dfm,
+    K = 20,
+    prevalence = ~ in_election_period * country + s(date_as_numeric),
+    data = complete_climate_speeches,
+    init.type = "Spectral",
+    verbose = TRUE
+)
+save(
+    election_interaction_stm,
+    file = paste0(DATA_PATH, "election_interaction_stm.RData")
+)
 ```

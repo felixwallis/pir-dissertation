@@ -235,6 +235,46 @@ save(
 )
 ```
 
+## Validating the fitted STM
+
+```{r}
+load(paste0(DATA_PATH, "party_interaction_stm.RData"))
+```
+
+### Investigating the words associated with each topic
+
+```{r}
+topic_labels <- labelTopics(party_interaction_stm)
+
+topic_labels_df <- data.frame(
+    Topic = topic_labels$topicnums,
+    Probability = apply(topic_labels$prob, 1, paste, collapse = ", "),
+    Frex = apply(topic_labels$frex, 1, paste, collapse = ", "),
+    Lift = apply(topic_labels$lift, 1, paste, collapse = ", "),
+    Score = apply(topic_labels$score, 1, paste, collapse = ", ")
+)
+
+write_csv(
+    topic_labels_df,
+    paste0(DIST_PATH, "party_interaction_stm_topic_labels.csv")
+)
+```
+
+## Estimating topic relationships
+
+### Estimating the effect of `affiliation`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a covariate
+
+```{r}
+party_prevalence_effects <- estimateEffect(
+    formula = c(seq_len(18)) ~ affiliation * country + s(date_as_numeric),
+    stmobj = party_interaction_stm,
+    metadata = docvars(climate_speeches_dfm),
+    uncertainty = "None"
+)
+summary(party_prevalence_effects)
+```
+
+
 # Testing Hypothesis 3
 
 ## Using `searchK` to find the optimal number of topics for an STM with an interaction betwwn `in_election_period` and `country`, with `date_as_numeric` added as a covariate

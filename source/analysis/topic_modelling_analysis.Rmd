@@ -199,7 +199,7 @@ search_k_results <- data.frame(
 
 search_k_results <- search_k_results |>
     pivot_longer(
-        cols = c(Exclusivity, `Semantic Coherence`, `Heldout Likelihood`),
+        cols = c(`Heldout Likelihood`, `Semantic Coherence`, Exclusivity),
         names_to = "variable",
         values_to = "value"
     )
@@ -210,12 +210,12 @@ ggplot(search_k_results, aes(x = K, y = value, color = variable)) +
     labs(
         x = "K",
         y = "Value",
-        title = "Plot of Variables by K"
+        title = "Plot of Model Diagnostics by K"
     ) +
     theme(
-        legend.position = "none",
-        plot.title.position = "plot"
-    )
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  )
 ```
 
 

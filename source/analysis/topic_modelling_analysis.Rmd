@@ -213,9 +213,9 @@ ggplot(search_k_results, aes(x = K, y = value, color = variable)) +
         title = "Plot of Model Diagnostics by K"
     ) +
     theme(
-    legend.position = "none",
-    panel.grid.minor = element_blank()
-  )
+        legend.position = "none",
+        panel.grid.minor = element_blank()
+    )
 ```
 
 
@@ -226,16 +226,54 @@ ggplot(search_k_results, aes(x = K, y = value, color = variable)) +
 ```{r}
 election_interaction_search_k <- searchK(
     documents = climate_speeches_dfm,
-    K = c(10, 20, 50),
+    K = c(10, 12, 14, 16, 18, 20),
     prevalence = ~ in_election_period * country + s(date_as_numeric),
     data = complete_climate_speeches,
     N = floor(0.1 * nrow(complete_climate_speeches)),
     cores = 6,
     verbose = TRUE
 )
-plot(election_interaction_search_k)
 save(
     election_interaction_search_k,
     file = paste0(DATA_PATH, "election_interaction_search_k.RData")
 )
+```
+
+### Plotting the model's fit across different numbers of topics
+
+```{r}
+load(paste0(DATA_PATH, "election_interaction_search_k.RData"))
+
+search_k_results <- data.frame(
+    lapply(
+        election_interaction_search_k$results,
+        function(x) as.numeric(unlist(x))
+    )
+) |>
+    select(-residual, -bound, -lbound, -em.its) |>
+    rename(
+        Exclusivity = exclus,
+        `Semantic Coherence` = semcoh,
+        `Heldout Likelihood` = heldout
+    )
+
+search_k_results <- search_k_results |>
+    pivot_longer(
+        cols = c(`Heldout Likelihood`, `Semantic Coherence`, Exclusivity),
+        names_to = "variable",
+        values_to = "value"
+    )
+
+ggplot(search_k_results, aes(x = K, y = value, color = variable)) +
+    geom_line() +
+    facet_wrap(~variable, scales = "free_y") +
+    labs(
+        x = "K",
+        y = "Value",
+        title = "Plot of Model Diagnostics by K"
+    ) +
+    theme(
+        legend.position = "none",
+        panel.grid.minor = element_blank()
+    )
 ```

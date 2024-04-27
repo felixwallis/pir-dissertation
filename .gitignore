@@ -17,6 +17,8 @@ hansard_with_mp_details.csv
 people.csv
 congressional_record_embeddings_12_300_1.rds
 hansard_embeddings_12_300_1.rds
+.Rhistory
 
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+

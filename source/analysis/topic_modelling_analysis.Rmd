@@ -267,9 +267,9 @@ write_csv(
 par(mfrow = c(1, 2))
 cloud(
     party_interaction_stm,
-    topic = 6
+    topic = 5
 )
-title("Topic 6")
+title("Topic 5")
 cloud(
     party_interaction_stm,
     topic = 16
@@ -281,29 +281,12 @@ par(mfrow = c(1, 1))
 ### Investigating the documents associated with each topic
 
 ```{r}
-get_thoughts_by_topic <- function(topic_numbers) {
+get_thoughts_by_topic <- function(topic_numbers, stm_obj) {
     party_interaction_thoughts <- data.frame()
 
     for (topic_num in topic_numbers) {
-        topic_uk_thoughts <- findThoughts(
-            party_interaction_stm,
-            texts = climate_speeches_dfm$text,
-            topics = topic_num,
-            n = 5,
-            where = country == "UK",
-            meta = docvars(climate_speeches_dfm)
-        )
-
-        topic_uk_thoughts_df <- data.frame(
-            Topic = topic_num,
-            `Topic Memberships` =
-                topic_uk_thoughts$index[[paste0("Topic ", topic_num)]],
-            `Documents` = topic_uk_thoughts$docs[[paste0("Topic ", topic_num)]],
-            County = "UK"
-        )
-
         topic_us_thoughts <- findThoughts(
-            party_interaction_stm,
+            stm_obj,
             texts = climate_speeches_dfm$text,
             topics = topic_num,
             n = 5,
@@ -313,23 +296,43 @@ get_thoughts_by_topic <- function(topic_numbers) {
 
         topic_us_thoughts_df <- data.frame(
             Topic = topic_num,
-            `Topic Memberships` =
+            `Document Index` =
                 topic_us_thoughts$index[[paste0("Topic ", topic_num)]],
             `Documents` = topic_us_thoughts$docs[[paste0("Topic ", topic_num)]],
             County = "USA"
         )
 
+        topic_uk_thoughts <- findThoughts(
+            stm_obj,
+            texts = climate_speeches_dfm$text,
+            topics = topic_num,
+            n = 5,
+            where = country == "UK",
+            meta = docvars(climate_speeches_dfm)
+        )
+
+        topic_uk_thoughts_df <- data.frame(
+            Topic = topic_num,
+            `Document Index` =
+                topic_uk_thoughts$index[[paste0("Topic ", topic_num)]],
+            `Documents` = topic_uk_thoughts$docs[[paste0("Topic ", topic_num)]],
+            County = "UK"
+        )
+
         party_interaction_thoughts <- bind_rows(
             party_interaction_thoughts,
-            topic_uk_thoughts_df,
-            topic_us_thoughts_df
+            topic_us_thoughts_df,
+            topic_uk_thoughts_df
         )
     }
 
     return(party_interaction_thoughts)
 }
 
-party_interaction_thoughts <- get_thoughts_by_topic(c(6, 16))
+party_interaction_thoughts <- get_thoughts_by_topic(
+    c(11),
+    party_interaction_stm
+)
 
 write_csv(
     party_interaction_thoughts,
@@ -350,7 +353,6 @@ party_prevalence_effects <- estimateEffect(
 )
 summary(party_prevalence_effects)
 ```
-
 
 # Testing Hypothesis 3
 
@@ -461,13 +463,75 @@ write_csv(
 par(mfrow = c(1, 2))
 cloud(
     election_interaction_stm,
-    topic = 6
+    topic = 9
 )
-title("Topic 6")
+title("Topic 9")
 cloud(
     election_interaction_stm,
     topic = 16
 )
 title("Topic 16")
 par(mfrow = c(1, 1))
+```
+
+### Investigating the documents associated with each topic
+
+```{r}
+get_thoughts_by_topic <- function(topic_numbers, stm_obj) {
+    election_interaction_thoughts <- data.frame()
+
+    for (topic_num in topic_numbers) {
+        topic_us_thoughts <- findThoughts(
+            stm_obj,
+            texts = climate_speeches_dfm$text,
+            topics = topic_num,
+            n = 5,
+            where = country == "USA",
+            meta = docvars(climate_speeches_dfm)
+        )
+
+        topic_us_thoughts_df <- data.frame(
+            Topic = topic_num,
+            `Document Index` =
+                topic_us_thoughts$index[[paste0("Topic ", topic_num)]],
+            `Documents` = topic_us_thoughts$docs[[paste0("Topic ", topic_num)]],
+            County = "USA"
+        )
+
+        topic_uk_thoughts <- findThoughts(
+            stm_obj,
+            texts = climate_speeches_dfm$text,
+            topics = topic_num,
+            n = 5,
+            where = country == "UK",
+            meta = docvars(climate_speeches_dfm)
+        )
+
+        topic_uk_thoughts_df <- data.frame(
+            Topic = topic_num,
+            `Document Index` =
+                topic_uk_thoughts$index[[paste0("Topic ", topic_num)]],
+            `Documents` = topic_uk_thoughts$docs[[paste0("Topic ", topic_num)]],
+            County = "UK"
+        )
+
+        election_interaction_thoughts <- bind_rows(
+            election_interaction_thoughts,
+            topic_us_thoughts_df,
+            topic_uk_thoughts_df
+        )
+    }
+
+    return(election_interaction_thoughts)
+}
+
+election_interaction_thoughts <- get_thoughts_by_topic(
+    c(6),
+    election_interaction_stm
+)
+
+write_csv(
+    election_interaction_thoughts,
+    paste0(DIST_PATH, "election_interaction_stm_thoughts.csv")
+)
 ```

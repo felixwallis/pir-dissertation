@@ -243,6 +243,7 @@ load(paste0(DATA_PATH, "party_interaction_stm.RData"))
 
 ### Investigating the words associated with each topic
 
+**Word lists**
 ```{r}
 topic_labels <- labelTopics(party_interaction_stm)
 
@@ -349,5 +350,31 @@ election_interaction_stm <- stm(
 save(
     election_interaction_stm,
     file = paste0(DATA_PATH, "election_interaction_stm.RData")
+)
+```
+
+## Validating the fitted STM
+
+```{r}
+load(paste0(DATA_PATH, "election_interaction_stm.RData"))
+```
+
+### Investigating the words associated with each topic
+
+**Word lists**
+```{r}
+topic_labels <- labelTopics(election_interaction_stm)
+
+topic_labels_df <- data.frame(
+    Topic = topic_labels$topicnums,
+    Probability = apply(topic_labels$prob, 1, paste, collapse = ", "),
+    Frex = apply(topic_labels$frex, 1, paste, collapse = ", "),
+    Lift = apply(topic_labels$lift, 1, paste, collapse = ", "),
+    Score = apply(topic_labels$score, 1, paste, collapse = ", ")
+)
+
+write_csv(
+    topic_labels_df,
+    paste0(DIST_PATH, "election_interaction_stm_topic_labels.csv")
 )
 ```

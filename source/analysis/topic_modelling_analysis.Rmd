@@ -261,6 +261,23 @@ write_csv(
 )
 ```
 
+**Word clouds**
+
+```{r}
+par(mfrow = c(1, 2))
+cloud(
+    party_interaction_stm,
+    topic = 6
+)
+title("Topic 6")
+cloud(
+    party_interaction_stm,
+    topic = 16
+)
+title("Topic 16")
+par(mfrow = c(1, 1))
+```
+
 ## Estimating topic relationships
 
 ### Estimating the effect of `affiliation`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a covariate
@@ -377,4 +394,21 @@ write_csv(
     topic_labels_df,
     paste0(DIST_PATH, "election_interaction_stm_topic_labels.csv")
 )
+```
+
+**Word clouds**
+
+```{r}
+par(mfrow = c(1, 2))
+cloud(
+    election_interaction_stm,
+    topic = 6
+)
+title("Topic 6")
+cloud(
+    election_interaction_stm,
+    topic = 16
+)
+title("Topic 16")
+par(mfrow = c(1, 1))
 ```

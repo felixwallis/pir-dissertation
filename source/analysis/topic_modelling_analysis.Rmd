@@ -278,6 +278,65 @@ title("Topic 16")
 par(mfrow = c(1, 1))
 ```
 
+### Investigating the documents associated with each topic
+
+```{r}
+get_thoughts_by_topic <- function(topic_numbers) {
+    party_interaction_thoughts <- data.frame()
+
+    for (topic_num in topic_numbers) {
+        topic_uk_thoughts <- findThoughts(
+            party_interaction_stm,
+            texts = climate_speeches_dfm$text,
+            topics = topic_num,
+            n = 5,
+            where = country == "UK",
+            meta = docvars(climate_speeches_dfm)
+        )
+
+        topic_uk_thoughts_df <- data.frame(
+            Topic = topic_num,
+            `Topic Memberships` =
+                topic_uk_thoughts$index[[paste0("Topic ", topic_num)]],
+            `Documents` = topic_uk_thoughts$docs[[paste0("Topic ", topic_num)]],
+            County = "UK"
+        )
+
+        topic_us_thoughts <- findThoughts(
+            party_interaction_stm,
+            texts = climate_speeches_dfm$text,
+            topics = topic_num,
+            n = 5,
+            where = country == "USA",
+            meta = docvars(climate_speeches_dfm)
+        )
+
+        topic_us_thoughts_df <- data.frame(
+            Topic = topic_num,
+            `Topic Memberships` =
+                topic_us_thoughts$index[[paste0("Topic ", topic_num)]],
+            `Documents` = topic_us_thoughts$docs[[paste0("Topic ", topic_num)]],
+            County = "USA"
+        )
+
+        party_interaction_thoughts <- bind_rows(
+            party_interaction_thoughts,
+            topic_uk_thoughts_df,
+            topic_us_thoughts_df
+        )
+    }
+
+    return(party_interaction_thoughts)
+}
+
+party_interaction_thoughts <- get_thoughts_by_topic(c(6, 16))
+
+write_csv(
+    party_interaction_thoughts,
+    paste0(DIST_PATH, "party_interaction_stm_thoughts.csv")
+)
+```
+
 ## Estimating topic relationships
 
 ### Estimating the effect of `affiliation`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a covariate

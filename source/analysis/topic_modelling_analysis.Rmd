@@ -342,6 +342,10 @@ write_csv(
 
 ## Estimating topic relationships
 
+```{r}
+load(paste0(DATA_PATH, "party_interaction_stm.RData"))
+```
+
 ### Estimating the effect of `affiliation`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a covariate
 
 ```{r}
@@ -534,4 +538,23 @@ write_csv(
     election_interaction_thoughts,
     paste0(DIST_PATH, "election_interaction_stm_thoughts.csv")
 )
+```
+
+## Estimating topic relationships
+
+```{r}
+load(paste0(DATA_PATH, "election_interaction_stm.RData"))
+```
+
+### Estimating the effect of `in_election_period`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a covariate
+
+```{r}
+election_prevalence_effects <- estimateEffect(
+    formula =
+        c(seq_len(20)) ~ in_election_period * country + s(date_as_numeric),
+    stmobj = election_interaction_stm,
+    metadata = docvars(climate_speeches_dfm),
+    uncertainty = "None"
+)
+summary(election_prevalence_effects)
 ```

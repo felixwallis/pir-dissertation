@@ -144,7 +144,7 @@ complete_climate_speeches <- complete_climate_speeches |>
     )
 ```
 
-## Creating a Climate Speeches DFM
+## Creating a climate speeches DFM
 
 ```{r}
 climate_speeches_corpus <-
@@ -289,7 +289,7 @@ get_thoughts_by_topic <- function(topic_numbers, stm_obj) {
             stm_obj,
             texts = climate_speeches_dfm$text,
             topics = topic_num,
-            n = 5,
+            n = 10,
             where = country == "USA",
             meta = docvars(climate_speeches_dfm)
         )
@@ -306,7 +306,7 @@ get_thoughts_by_topic <- function(topic_numbers, stm_obj) {
             stm_obj,
             texts = climate_speeches_dfm$text,
             topics = topic_num,
-            n = 5,
+            n = 10,
             where = country == "UK",
             meta = docvars(climate_speeches_dfm)
         )
@@ -330,7 +330,7 @@ get_thoughts_by_topic <- function(topic_numbers, stm_obj) {
 }
 
 party_interaction_thoughts <- get_thoughts_by_topic(
-    c(11),
+    c(4),
     party_interaction_stm
 )
 
@@ -346,6 +346,51 @@ write_csv(
 load(paste0(DATA_PATH, "party_interaction_stm.RData"))
 ```
 
+### Summarising the prevalence of each topic in the climate speeches corpus
+
+```{r}
+plot.STM(
+    party_interaction_stm,
+    type = "summary",
+    n = 5,
+    main = ""
+)
+```
+
+### Plotting key quotes from a pro-climate topic
+
+```{r}
+topic_16_us_thoughts <- findThoughts(
+    party_interaction_stm,
+    texts = climate_speeches_dfm$text,
+    topics = 16,
+    n = 2,
+    where = country == "USA",
+    meta = docvars(climate_speeches_dfm)
+)$docs[[1]]
+
+topic_16_uk_thoughts <- findThoughts(
+    party_interaction_stm,
+    texts = climate_speeches_dfm$text,
+    topics = 16,
+    n = 2,
+    where = country == "UK",
+    meta = docvars(climate_speeches_dfm)
+)$docs[[1]]
+
+par(mfrow = c(1, 2), mar = c(0.5, 0.5, 1, 0.5))
+plotQuote(
+    topic_16_uk_thoughts,
+    width = 50,
+    main = "UK Speeches"
+)
+plotQuote(
+    paste0(str_sub(topic_16_us_thoughts, start = 1, end = 400), "..."),
+    width = 50,
+    main = "US Speeches"
+)
+```
+
 ### Estimating the effect of `affiliation`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a covariate
 
 ```{r}
@@ -355,6 +400,27 @@ party_prevalence_effects <- estimateEffect(
     metadata = docvars(climate_speeches_dfm),
     uncertainty = "None"
 )
+```
+
+### Plotting the difference in prevalence of each topic among UK and US legislators
+
+```{r}
+plot.estimateEffect(
+    party_prevalence_effects,
+    covariate = "country",
+    method = "difference",
+    cov.value1 = "UK",
+    cov.value2 = "USA",
+    xlim = c(-0.3, 0.3),
+    xlab = "USA ... UK",
+    verbose.labels = FALSE,
+    topics = c(seq_len(18))
+)
+```
+
+### Reviewing the model's regression coefficients
+
+```{r}
 summary(party_prevalence_effects)
 ```
 

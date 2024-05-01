@@ -119,18 +119,22 @@ in_election_period <- function(row) {
     chamber <- row$chamber
 
     if (chamber == "House" | chamber == "Senate") {
-        house_election_dates <- election_dates |>
+        us_election_dates <- election_dates |>
             filter(election_type == "US Congressional") |>
             pull(date)
         return(
-            any(abs(house_election_dates - speech_date) <= ELECTION_PERIOD_DAYS)
+            any(
+                (us_election_dates - speech_date) <= ELECTION_PERIOD_DAYS & (us_election_dates - speech_date) >= 0
+            )
         )
     } else if (chamber == "House of Commons") {
         uk_election_dates <- election_dates |>
             filter(election_type == "UK General") |>
             pull(date)
         return(
-            any(abs(uk_election_dates - speech_date) <= ELECTION_PERIOD_DAYS)
+            any(
+                (uk_election_dates - speech_date) <= ELECTION_PERIOD_DAYS & (uk_election_dates - speech_date) >= 0
+            )
         )
     }
 }
@@ -346,7 +350,7 @@ write_csv(
 load(paste0(DATA_PATH, "party_interaction_stm.RData"))
 ```
 
-### Summarising the prevalence of each topic in the climate speeches corpus
+### Summarising the prevalence of the STM's topics
 
 ```{r}
 plot.STM(
@@ -389,6 +393,7 @@ plotQuote(
     width = 50,
     main = "US Speeches"
 )
+par(mfrow = c(1, 1))
 ```
 
 ### Estimating the effect of `affiliation`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a covariate
@@ -402,7 +407,7 @@ party_prevalence_effects <- estimateEffect(
 )
 ```
 
-### Plotting the difference in prevalence of each topic among UK and US legislators
+### Plotting each topic's difference in prevalence among UK and US legislators
 
 ```{r}
 plot.estimateEffect(
@@ -596,7 +601,7 @@ get_thoughts_by_topic <- function(topic_numbers, stm_obj) {
 }
 
 election_interaction_thoughts <- get_thoughts_by_topic(
-    c(6),
+    c(16, 20),
     election_interaction_stm
 )
 
@@ -612,6 +617,17 @@ write_csv(
 load(paste0(DATA_PATH, "election_interaction_stm.RData"))
 ```
 
+### Summarising the prevalence of the STM's topics
+
+```{r}
+plot.STM(
+    election_interaction_stm,
+    type = "summary",
+    n = 5,
+    main = ""
+)
+```
+
 ### Estimating the effect of `in_election_period`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a covariate
 
 ```{r}
@@ -622,5 +638,28 @@ election_prevalence_effects <- estimateEffect(
     metadata = docvars(climate_speeches_dfm),
     uncertainty = "None"
 )
+```
+
+### Plotting each topic's difference in prevalence among UK and US legislators
+
+```{r}
+plot.estimateEffect(
+    election_prevalence_effects,
+    covariate = "country",
+    method = "difference",
+    cov.value1 = "UK",
+    cov.value2 = "USA",
+    xlim = c(-0.3, 0.3),
+    xlab = "USA ... UK",
+    verbose.labels = FALSE,
+    topics = c(seq_len(20))
+)
+```
+
+### Reviewing the model's regression coefficients
+
+```{r}
 summary(election_prevalence_effects)
+
+nrow(complete_climate_speeches[complete_climate_speeches$in_election_period == TRUE, ])
 ```

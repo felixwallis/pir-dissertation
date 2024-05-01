@@ -350,7 +350,7 @@ write_csv(
 load(paste0(DATA_PATH, "party_interaction_stm.RData"))
 ```
 
-### Summarising the prevalence of the STM's topics
+### Summarising the STM's topic prevalence
 
 ```{r}
 plot.STM(
@@ -361,7 +361,7 @@ plot.STM(
 )
 ```
 
-### Plotting key quotes from a pro-climate topic
+### Plotting the key quotes from a pro-climate topic
 
 ```{r}
 topic_16_us_thoughts <- findThoughts(
@@ -617,7 +617,7 @@ write_csv(
 load(paste0(DATA_PATH, "election_interaction_stm.RData"))
 ```
 
-### Summarising the prevalence of the STM's topics
+### Summarising the STM's topic prevalence
 
 ```{r}
 plot.STM(
@@ -626,6 +626,41 @@ plot.STM(
     n = 5,
     main = ""
 )
+```
+
+### Plotting the key quotes from a pro-climate topic
+
+```{r}
+topic_16_us_thoughts <- findThoughts(
+    election_interaction_stm,
+    texts = climate_speeches_dfm$text,
+    topics = 16,
+    n = 2,
+    where = country == "USA",
+    meta = docvars(climate_speeches_dfm)
+)$docs[[1]]
+
+topic_16_uk_thoughts <- findThoughts(
+    election_interaction_stm,
+    texts = climate_speeches_dfm$text,
+    topics = 16,
+    n = 2,
+    where = country == "UK",
+    meta = docvars(climate_speeches_dfm)
+)$docs[[1]]
+
+par(mfrow = c(1, 2), mar = c(0.5, 0.5, 1, 0.5))
+plotQuote(
+    topic_16_uk_thoughts,
+    width = 50,
+    main = "UK Speeches"
+)
+plotQuote(
+    paste0(str_sub(topic_16_us_thoughts, start = 1, end = 400), "..."),
+    width = 50,
+    main = "US Speeches"
+)
+par(mfrow = c(1, 1))
 ```
 
 ### Estimating the effect of `in_election_period`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a covariate
@@ -661,5 +696,5 @@ plot.estimateEffect(
 ```{r}
 summary(election_prevalence_effects)
 
-nrow(complete_climate_speeches[complete_climate_speeches$in_election_period == TRUE, ])
+row <- complete_climate_speeches[457, ]
 ```

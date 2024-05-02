@@ -101,7 +101,7 @@ complete_climate_speeches <- bind_rows(
 ) |>
     arrange(speech_date) |>
     mutate(
-        date_as_numeric = as.numeric(speech_date),
+        date_as_numeric = as.numeric(speech_date - min(speech_date)),
         affiliation = case_when(
             speech_party %in% c("Democrat", "Labour") ~ "Left",
             speech_party %in% c(
@@ -245,9 +245,7 @@ save(
 load(paste0(DATA_PATH, "party_interaction_stm.RData"))
 ```
 
-### Investigating the words associated with each topic
-
-**Word lists**
+### Word lists
 ```{r}
 topic_labels <- labelTopics(party_interaction_stm)
 
@@ -265,7 +263,7 @@ write_csv(
 )
 ```
 
-**Word clouds**
+### Word clouds
 
 ```{r}
 par(mfrow = c(1, 2))
@@ -276,10 +274,27 @@ cloud(
 title("Topic 5")
 cloud(
     party_interaction_stm,
-    topic = 16
+    topic = 4
 )
 title("Topic 16")
 par(mfrow = c(1, 1))
+```
+
+## Estimating topic relationships
+
+```{r}
+load(paste0(DATA_PATH, "party_interaction_stm.RData"))
+```
+
+### Summarising the STM's topic prevalence
+
+```{r}
+plot.STM(
+    party_interaction_stm,
+    type = "summary",
+    n = 5,
+    main = ""
+)
 ```
 
 ### Investigating the documents associated with each topic
@@ -334,30 +349,13 @@ get_thoughts_by_topic <- function(topic_numbers, stm_obj) {
 }
 
 party_interaction_thoughts <- get_thoughts_by_topic(
-    c(4),
+    c(5),
     party_interaction_stm
 )
 
 write_csv(
     party_interaction_thoughts,
     paste0(DIST_PATH, "party_interaction_stm_thoughts.csv")
-)
-```
-
-## Estimating topic relationships
-
-```{r}
-load(paste0(DATA_PATH, "party_interaction_stm.RData"))
-```
-
-### Summarising the STM's topic prevalence
-
-```{r}
-plot.STM(
-    party_interaction_stm,
-    type = "summary",
-    n = 5,
-    main = ""
 )
 ```
 
@@ -512,9 +510,8 @@ save(
 load(paste0(DATA_PATH, "election_interaction_stm.RData"))
 ```
 
-### Investigating the words associated with each topic
+### Word lists
 
-**Word lists**
 ```{r}
 topic_labels <- labelTopics(election_interaction_stm)
 
@@ -532,7 +529,7 @@ write_csv(
 )
 ```
 
-**Word clouds**
+### Word clouds
 
 ```{r}
 par(mfrow = c(1, 2))
@@ -547,6 +544,23 @@ cloud(
 )
 title("Topic 16")
 par(mfrow = c(1, 1))
+```
+
+## Estimating topic relationships
+
+```{r}
+load(paste0(DATA_PATH, "election_interaction_stm.RData"))
+```
+
+### Summarising the STM's topic prevalence
+
+```{r}
+plot.STM(
+    election_interaction_stm,
+    type = "summary",
+    n = 5,
+    main = ""
+)
 ```
 
 ### Investigating the documents associated with each topic
@@ -601,30 +615,13 @@ get_thoughts_by_topic <- function(topic_numbers, stm_obj) {
 }
 
 election_interaction_thoughts <- get_thoughts_by_topic(
-    c(16, 20),
+    c(1, 3, 6, 17, 18, 20),
     election_interaction_stm
 )
 
 write_csv(
     election_interaction_thoughts,
     paste0(DIST_PATH, "election_interaction_stm_thoughts.csv")
-)
-```
-
-## Estimating topic relationships
-
-```{r}
-load(paste0(DATA_PATH, "election_interaction_stm.RData"))
-```
-
-### Summarising the STM's topic prevalence
-
-```{r}
-plot.STM(
-    election_interaction_stm,
-    type = "summary",
-    n = 5,
-    main = ""
 )
 ```
 

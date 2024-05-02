@@ -695,6 +695,4 @@ plot.estimateEffect(
 
 ```{r}
 summary(election_prevalence_effects)
-
-row <- complete_climate_speeches[457, ]
 ```

@@ -164,7 +164,7 @@ climate_speeches_dfm <-
 
 # Testing Hypothesis 2
 
-## Using `searchK` to find the optimal number of topics for an STM with an interaction between `affiliation` and `country`, with `date_as_numeric` added as a covariate
+## Using `searchK` to find the optimal number of topics for an STM with an interaction between `affiliation` and `country`, with `date_as_numeric` added as a control
 
 ```{r}
 party_interaction_search_k <- searchK(
@@ -394,7 +394,7 @@ plotQuote(
 par(mfrow = c(1, 1))
 ```
 
-### Estimating the effect of `affiliation`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a covariate
+### Estimating the effect of `affiliation`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a control
 
 ```{r}
 party_prevalence_effects <- estimateEffect(
@@ -429,7 +429,7 @@ summary(party_prevalence_effects)
 
 # Testing Hypothesis 3
 
-## Using `searchK` to find the optimal number of topics for an STM with an interaction betwwn `in_election_period` and `country`, with `date_as_numeric` added as a covariate
+## Using `searchK` to find the optimal number of topics for an STM with an interaction betwwn `in_election_period` and `country`, with `date_as_numeric` added as a control
 
 ```{r}
 election_interaction_search_k <- searchK(
@@ -660,7 +660,7 @@ plotQuote(
 par(mfrow = c(1, 1))
 ```
 
-### Estimating the effect of `in_election_period`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a covariate
+### Estimating the effect of `in_election_period`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a control
 
 ```{r}
 election_prevalence_effects <- estimateEffect(

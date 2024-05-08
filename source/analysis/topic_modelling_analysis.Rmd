@@ -1,0 +1,695 @@
+---
+title: "Climate Congressional Record and Climate Hansard Topic Modelling"
+output: pdf_document
+fontsize: 12pt
+---
+
+# Setup
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(janitor)
+library(stringr)
+library(quanteda)
+library(stm)
+
+DATA_PATH <- "data/"
+DIST_PATH <- "dist/"
+
+ELECTION_PERIOD_DAYS <- 60
+
+climate_congressional_record <-
+    read_csv(paste0(DATA_PATH, "climate_congressional_record.csv"))
+climate_hansard <-
+    read_csv(paste0(DATA_PATH, "climate_hansard.csv"))
+
+election_dates <-
+    read_csv(paste0(DATA_PATH, "election_dates_1997_2015.csv")) |>
+    clean_names() |>
+    mutate(
+        date = as.character(date) |> as.Date(date, format = "%B %d, %Y")
+    )
+```
+
+# Data preprocessing
+
+## Cleaning the Climate Congressional Record dataset
+
+```{r}
+climate_congressional_record <- climate_congressional_record |>
+    rename(
+        family_name = last_name,
+        speech_date = date,
+        speech_party = party,
+        text = speech
+    ) |>
+    mutate(
+        across(c(first_name, family_name), str_to_title),
+        name = paste(first_name, family_name, sep = " ") |> str_to_title(),
+        speech_party = case_when(
+            speech_party == "R" ~ "Republican",
+            speech_party == "D" ~ "Democrat",
+        ),
+        speech_id = as.character(speech_id),
+        chamber = case_when(
+            chamber == "H" ~ "House",
+            chamber == "S" ~ "Senate"
+        )
+    ) |>
+    select(
+        speech_id,
+        name,
+        first_name,
+        family_name,
+        speech_date,
+        year,
+        speech_party,
+        text,
+        cleaned_stems,
+        chamber,
+    ) |>
+    mutate(country = "USA")
+```
+
+## Cleaning the Climate Hansard dataset
+
+```{r}
+climate_hansard <- climate_hansard |>
+    select(
+        speech_id,
+        name,
+        first_name,
+        family_name,
+        speech_date,
+        speech_party,
+        year,
+        text,
+        cleaned_stems
+    ) |>
+    mutate(
+        chamber = "House of Commons",
+        country = "UK"
+    )
+```
+
+## Combining the Climate Congressional Record and Climate Hansard datasets
+
+```{r}
+complete_climate_speeches <- bind_rows(
+    climate_congressional_record,
+    climate_hansard
+) |>
+    arrange(speech_date) |>
+    mutate(
+        date_as_numeric = as.numeric(speech_date - min(speech_date)),
+        affiliation = case_when(
+            speech_party %in% c("Democrat", "Labour") ~ "Left",
+            speech_party %in% c(
+                "Republican", "Conservative"
+            ) ~ "Right"
+        )
+    )
+```
+
+### Recording if a speech was made within 60 days of an election
+
+```{r}
+in_election_period <- function(row) {
+    speech_date <- row$speech_date
+    chamber <- row$chamber
+
+    if (chamber == "House" | chamber == "Senate") {
+        us_election_dates <- election_dates |>
+            filter(election_type == "US Congressional") |>
+            pull(date)
+        return(
+            any(
+                (us_election_dates - speech_date) <= ELECTION_PERIOD_DAYS & (us_election_dates - speech_date) >= 0
+            )
+        )
+    } else if (chamber == "House of Commons") {
+        uk_election_dates <- election_dates |>
+            filter(election_type == "UK General") |>
+            pull(date)
+        return(
+            any(
+                (uk_election_dates - speech_date) <= ELECTION_PERIOD_DAYS & (uk_election_dates - speech_date) >= 0
+            )
+        )
+    }
+}
+
+complete_climate_speeches <- complete_climate_speeches |>
+    mutate(
+        in_election_period = map_lgl(
+            seq_len(nrow(complete_climate_speeches)),
+            ~ in_election_period(complete_climate_speeches[.x, ])
+        )
+    )
+```
+
+## Creating a climate speeches DFM
+
+```{r}
+climate_speeches_corpus <-
+    corpus(
+        complete_climate_speeches,
+        text_field = "cleaned_stems"
+    )
+climate_speeches_dfm <-
+    climate_speeches_corpus |>
+    tokens() |>
+    dfm()
+```
+
+# Testing Hypothesis 2
+
+## Using `searchK` to find the optimal number of topics for an STM with an interaction between `affiliation` and `country`, with `date_as_numeric` added as a control
+
+```{r}
+party_interaction_search_k <- searchK(
+    documents = climate_speeches_dfm,
+    K = c(10, 12, 14, 16, 18, 20),
+    prevalence = ~ affiliation * country + s(date_as_numeric),
+    data = complete_climate_speeches,
+    N = floor(0.1 * nrow(complete_climate_speeches)),
+    cores = 6,
+    verbose = TRUE
+)
+save(
+    party_interaction_search_k,
+    file = paste0(DATA_PATH, "party_interaction_search_k.RData")
+)
+```
+
+### Plotting the model's fit across different numbers of topics
+
+```{r}
+load(paste0(DATA_PATH, "party_interaction_search_k.RData"))
+
+search_k_results <- data.frame(
+    lapply(
+        party_interaction_search_k$results,
+        function(x) as.numeric(unlist(x))
+    )
+) |>
+    select(-residual, -bound, -lbound, -em.its) |>
+    rename(
+        Exclusivity = exclus,
+        `Semantic Coherence` = semcoh,
+        `Heldout Likelihood` = heldout
+    )
+
+search_k_results <- search_k_results |>
+    pivot_longer(
+        cols = c(`Heldout Likelihood`, `Semantic Coherence`, Exclusivity),
+        names_to = "variable",
+        values_to = "value"
+    )
+
+ggplot(search_k_results, aes(x = K, y = value, color = variable)) +
+    geom_line() +
+    facet_wrap(~variable, scales = "free_y") +
+    labs(
+        x = "K",
+        y = "Value",
+        title = "Plot of Model Diagnostics by K"
+    ) +
+    scale_x_continuous(breaks = seq(10, 20, by = 2)) +
+    theme(
+        legend.position = "none",
+        panel.grid.minor = element_blank()
+    )
+```
+
+## Fitting an STM with the optimal number of topics
+
+```{r}
+party_interaction_stm <- stm(
+    documents = climate_speeches_dfm,
+    K = 18,
+    prevalence = ~ affiliation * country + s(date_as_numeric),
+    data = complete_climate_speeches,
+    init.type = "Spectral",
+    verbose = TRUE
+)
+save(
+    party_interaction_stm,
+    file = paste0(DATA_PATH, "party_interaction_stm.RData")
+)
+```
+
+## Validating the fitted STM
+
+```{r}
+load(paste0(DATA_PATH, "party_interaction_stm.RData"))
+```
+
+### Word lists
+```{r}
+topic_labels <- labelTopics(party_interaction_stm)
+
+topic_labels_df <- data.frame(
+    Topic = topic_labels$topicnums,
+    Probability = apply(topic_labels$prob, 1, paste, collapse = ", "),
+    Frex = apply(topic_labels$frex, 1, paste, collapse = ", "),
+    Lift = apply(topic_labels$lift, 1, paste, collapse = ", "),
+    Score = apply(topic_labels$score, 1, paste, collapse = ", ")
+)
+
+write_csv(
+    topic_labels_df,
+    paste0(DIST_PATH, "party_interaction_stm_topic_labels.csv")
+)
+```
+
+### Word clouds
+
+```{r}
+par(mfrow = c(1, 2))
+cloud(
+    party_interaction_stm,
+    topic = 5
+)
+title("Topic 5")
+cloud(
+    party_interaction_stm,
+    topic = 4
+)
+title("Topic 16")
+par(mfrow = c(1, 1))
+```
+
+## Estimating topic relationships
+
+```{r}
+load(paste0(DATA_PATH, "party_interaction_stm.RData"))
+```
+
+### Summarising the STM's topic prevalence
+
+```{r}
+plot.STM(
+    party_interaction_stm,
+    type = "summary",
+    n = 5,
+    main = ""
+)
+```
+
+### Investigating the documents associated with each topic
+
+```{r}
+get_thoughts_by_topic <- function(topic_numbers, stm_obj) {
+    party_interaction_thoughts <- data.frame()
+
+    for (topic_num in topic_numbers) {
+        topic_us_thoughts <- findThoughts(
+            stm_obj,
+            texts = climate_speeches_dfm$text,
+            topics = topic_num,
+            n = 10,
+            where = country == "USA",
+            meta = docvars(climate_speeches_dfm)
+        )
+
+        topic_us_thoughts_df <- data.frame(
+            Topic = topic_num,
+            `Document Index` =
+                topic_us_thoughts$index[[paste0("Topic ", topic_num)]],
+            `Documents` = topic_us_thoughts$docs[[paste0("Topic ", topic_num)]],
+            County = "USA"
+        )
+
+        topic_uk_thoughts <- findThoughts(
+            stm_obj,
+            texts = climate_speeches_dfm$text,
+            topics = topic_num,
+            n = 10,
+            where = country == "UK",
+            meta = docvars(climate_speeches_dfm)
+        )
+
+        topic_uk_thoughts_df <- data.frame(
+            Topic = topic_num,
+            `Document Index` =
+                topic_uk_thoughts$index[[paste0("Topic ", topic_num)]],
+            `Documents` = topic_uk_thoughts$docs[[paste0("Topic ", topic_num)]],
+            County = "UK"
+        )
+
+        party_interaction_thoughts <- bind_rows(
+            party_interaction_thoughts,
+            topic_us_thoughts_df,
+            topic_uk_thoughts_df
+        )
+    }
+
+    return(party_interaction_thoughts)
+}
+
+party_interaction_thoughts <- get_thoughts_by_topic(
+    c(5),
+    party_interaction_stm
+)
+
+write_csv(
+    party_interaction_thoughts,
+    paste0(DIST_PATH, "party_interaction_stm_thoughts.csv")
+)
+```
+
+### Plotting the key quotes from a pro-climate topic
+
+```{r}
+topic_16_us_thoughts <- findThoughts(
+    party_interaction_stm,
+    texts = climate_speeches_dfm$text,
+    topics = 16,
+    n = 2,
+    where = country == "USA",
+    meta = docvars(climate_speeches_dfm)
+)$docs[[1]]
+
+topic_16_uk_thoughts <- findThoughts(
+    party_interaction_stm,
+    texts = climate_speeches_dfm$text,
+    topics = 16,
+    n = 2,
+    where = country == "UK",
+    meta = docvars(climate_speeches_dfm)
+)$docs[[1]]
+
+par(mfrow = c(1, 2), mar = c(0.5, 0.5, 1, 0.5))
+plotQuote(
+    topic_16_uk_thoughts,
+    width = 50,
+    main = "UK Speeches"
+)
+plotQuote(
+    paste0(str_sub(topic_16_us_thoughts, start = 1, end = 400), "..."),
+    width = 50,
+    main = "US Speeches"
+)
+par(mfrow = c(1, 1))
+```
+
+### Estimating the effect of `affiliation`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a control
+
+```{r}
+party_prevalence_effects <- estimateEffect(
+    formula = c(seq_len(18)) ~ affiliation * country + s(date_as_numeric),
+    stmobj = party_interaction_stm,
+    metadata = docvars(climate_speeches_dfm),
+    uncertainty = "None"
+)
+```
+
+### Plotting each topic's difference in prevalence among UK and US legislators
+
+```{r}
+plot.estimateEffect(
+    party_prevalence_effects,
+    covariate = "country",
+    method = "difference",
+    cov.value1 = "UK",
+    cov.value2 = "USA",
+    xlim = c(-0.3, 0.3),
+    xlab = "USA ... UK",
+    verbose.labels = FALSE,
+    topics = c(seq_len(18))
+)
+```
+
+### Reviewing the model's regression coefficients
+
+```{r}
+summary(party_prevalence_effects)
+```
+
+# Testing Hypothesis 3
+
+## Using `searchK` to find the optimal number of topics for an STM with an interaction betwwn `in_election_period` and `country`, with `date_as_numeric` added as a control
+
+```{r}
+election_interaction_search_k <- searchK(
+    documents = climate_speeches_dfm,
+    K = c(10, 12, 14, 16, 18, 20),
+    prevalence = ~ in_election_period * country + s(date_as_numeric),
+    data = complete_climate_speeches,
+    N = floor(0.1 * nrow(complete_climate_speeches)),
+    cores = 6,
+    verbose = TRUE
+)
+save(
+    election_interaction_search_k,
+    file = paste0(DATA_PATH, "election_interaction_search_k.RData")
+)
+```
+
+### Plotting the model's fit across different numbers of topics
+
+```{r}
+load(paste0(DATA_PATH, "election_interaction_search_k.RData"))
+
+search_k_results <- data.frame(
+    lapply(
+        election_interaction_search_k$results,
+        function(x) as.numeric(unlist(x))
+    )
+) |>
+    select(-residual, -bound, -lbound, -em.its) |>
+    rename(
+        Exclusivity = exclus,
+        `Semantic Coherence` = semcoh,
+        `Heldout Likelihood` = heldout
+    )
+
+search_k_results <- search_k_results |>
+    pivot_longer(
+        cols = c(`Heldout Likelihood`, `Semantic Coherence`, Exclusivity),
+        names_to = "variable",
+        values_to = "value"
+    )
+
+ggplot(search_k_results, aes(x = K, y = value, color = variable)) +
+    geom_line() +
+    facet_wrap(~variable, scales = "free_y") +
+    labs(
+        x = "K",
+        y = "Value",
+        title = "Plot of Model Diagnostics by K"
+    ) +
+    scale_x_continuous(breaks = seq(10, 20, by = 2)) +
+    theme(
+        legend.position = "none",
+        panel.grid.minor = element_blank()
+    )
+```
+
+## Fitting an STM with the optimal number of topics
+
+```{r}
+election_interaction_stm <- stm(
+    documents = climate_speeches_dfm,
+    K = 20,
+    prevalence = ~ in_election_period * country + s(date_as_numeric),
+    data = complete_climate_speeches,
+    init.type = "Spectral",
+    verbose = TRUE
+)
+save(
+    election_interaction_stm,
+    file = paste0(DATA_PATH, "election_interaction_stm.RData")
+)
+```
+
+## Validating the fitted STM
+
+```{r}
+load(paste0(DATA_PATH, "election_interaction_stm.RData"))
+```
+
+### Word lists
+
+```{r}
+topic_labels <- labelTopics(election_interaction_stm)
+
+topic_labels_df <- data.frame(
+    Topic = topic_labels$topicnums,
+    Probability = apply(topic_labels$prob, 1, paste, collapse = ", "),
+    Frex = apply(topic_labels$frex, 1, paste, collapse = ", "),
+    Lift = apply(topic_labels$lift, 1, paste, collapse = ", "),
+    Score = apply(topic_labels$score, 1, paste, collapse = ", ")
+)
+
+write_csv(
+    topic_labels_df,
+    paste0(DIST_PATH, "election_interaction_stm_topic_labels.csv")
+)
+```
+
+### Word clouds
+
+```{r}
+par(mfrow = c(1, 2))
+cloud(
+    election_interaction_stm,
+    topic = 9
+)
+title("Topic 9")
+cloud(
+    election_interaction_stm,
+    topic = 16
+)
+title("Topic 16")
+par(mfrow = c(1, 1))
+```
+
+## Estimating topic relationships
+
+```{r}
+load(paste0(DATA_PATH, "election_interaction_stm.RData"))
+```
+
+### Summarising the STM's topic prevalence
+
+```{r}
+plot.STM(
+    election_interaction_stm,
+    type = "summary",
+    n = 5,
+    main = ""
+)
+```
+
+### Investigating the documents associated with each topic
+
+```{r}
+get_thoughts_by_topic <- function(topic_numbers, stm_obj) {
+    election_interaction_thoughts <- data.frame()
+
+    for (topic_num in topic_numbers) {
+        topic_us_thoughts <- findThoughts(
+            stm_obj,
+            texts = climate_speeches_dfm$text,
+            topics = topic_num,
+            n = 5,
+            where = country == "USA",
+            meta = docvars(climate_speeches_dfm)
+        )
+
+        topic_us_thoughts_df <- data.frame(
+            Topic = topic_num,
+            `Document Index` =
+                topic_us_thoughts$index[[paste0("Topic ", topic_num)]],
+            `Documents` = topic_us_thoughts$docs[[paste0("Topic ", topic_num)]],
+            County = "USA"
+        )
+
+        topic_uk_thoughts <- findThoughts(
+            stm_obj,
+            texts = climate_speeches_dfm$text,
+            topics = topic_num,
+            n = 5,
+            where = country == "UK",
+            meta = docvars(climate_speeches_dfm)
+        )
+
+        topic_uk_thoughts_df <- data.frame(
+            Topic = topic_num,
+            `Document Index` =
+                topic_uk_thoughts$index[[paste0("Topic ", topic_num)]],
+            `Documents` = topic_uk_thoughts$docs[[paste0("Topic ", topic_num)]],
+            County = "UK"
+        )
+
+        election_interaction_thoughts <- bind_rows(
+            election_interaction_thoughts,
+            topic_us_thoughts_df,
+            topic_uk_thoughts_df
+        )
+    }
+
+    return(election_interaction_thoughts)
+}
+
+election_interaction_thoughts <- get_thoughts_by_topic(
+    c(1, 3, 6, 17, 18, 20),
+    election_interaction_stm
+)
+
+write_csv(
+    election_interaction_thoughts,
+    paste0(DIST_PATH, "election_interaction_stm_thoughts.csv")
+)
+```
+
+### Plotting the key quotes from a pro-climate topic
+
+```{r}
+topic_16_us_thoughts <- findThoughts(
+    election_interaction_stm,
+    texts = climate_speeches_dfm$text,
+    topics = 16,
+    n = 2,
+    where = country == "USA",
+    meta = docvars(climate_speeches_dfm)
+)$docs[[1]]
+
+topic_16_uk_thoughts <- findThoughts(
+    election_interaction_stm,
+    texts = climate_speeches_dfm$text,
+    topics = 16,
+    n = 2,
+    where = country == "UK",
+    meta = docvars(climate_speeches_dfm)
+)$docs[[1]]
+
+par(mfrow = c(1, 2), mar = c(0.5, 0.5, 1, 0.5))
+plotQuote(
+    topic_16_uk_thoughts,
+    width = 50,
+    main = "UK Speeches"
+)
+plotQuote(
+    paste0(str_sub(topic_16_us_thoughts, start = 1, end = 400), "..."),
+    width = 50,
+    main = "US Speeches"
+)
+par(mfrow = c(1, 1))
+```
+
+### Estimating the effect of `in_election_period`, `country`, and their interaction of topic prevalence while adding `date_as_numeric` as a control
+
+```{r}
+election_prevalence_effects <- estimateEffect(
+    formula =
+        c(seq_len(20)) ~ in_election_period * country + s(date_as_numeric),
+    stmobj = election_interaction_stm,
+    metadata = docvars(climate_speeches_dfm),
+    uncertainty = "None"
+)
+```
+
+### Plotting each topic's difference in prevalence among UK and US legislators
+
+```{r}
+plot.estimateEffect(
+    election_prevalence_effects,
+    covariate = "country",
+    method = "difference",
+    cov.value1 = "UK",
+    cov.value2 = "USA",
+    xlim = c(-0.3, 0.3),
+    xlab = "USA ... UK",
+    verbose.labels = FALSE,
+    topics = c(seq_len(20))
+)
+```
+
+### Reviewing the model's regression coefficients
+
+```{r}
+summary(election_prevalence_effects)
+```

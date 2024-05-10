@@ -28,7 +28,7 @@ This directory contains the code and data I use to create procedural dictionarie
 
 - [shortened_congressional_record_procedural_stems.csv](/source/dictionaries/dist/shortened_congressional_record_procedural_stems.csv) contains the procedural dictionary for Congress. I adapt this dictionary from [Gennaro, G. and Ash, E. (2021) 'Emotion and Reason in Political Language'](https://doi.org/10.1093/ej/ueab104).
 - [hansard_procedural_stems_creation](./source/dictionaries/hansard_procedural_stems_creation.ipynb) creates a dictionary of Parliamentary procedural terms, stored as [shortened_hansard_procedural_stems.csv](/source/dictionaries/dist/shortened_hansard_procedural_stems.csv).
-- [climate_stems_creation](./source/dictionaries/climate_change_terms_creation.ipynb) creates a dictionary of climate change terms, stored as [shortened_climate_stems.csv](/source/dictionaries/dist/shortened_climate_stems.csv).
+- [climate_stems_creation](./source/dictionaries/climate_stems_creation.ipynb) creates a dictionary of climate change terms, stored as [shortened_climate_stems.csv](/source/dictionaries/dist/shortened_climate_stems.csv).
 
 ### [analysis](./source/analysis/)
 
@@ -37,5 +37,5 @@ This directory contains the code for my analyses, which is structured as follows
 - [filtering.ipynb](./source/analysis/filtering.ipynb) preprocesses the Hansard and Congressional Record data and filters it only to include climate policy speeches.
 - [word_cloud_analysis](./source/analysis/word_cloud_analysis.ipynb) creates some basic word clouds of the filtered climate policy speeches. These figures provide a helpful way to ensure that the filtering process correctly captures climate policy speeches.
 - [descriptive_analysis.ipynb](./source/analysis/descriptive_analysis.ipynb) performs a basic descriptive analysis of the filtered climate policy speeches.
-- [word_embedding_analysis.ipynb](./source/analysis/word_embedding_analysis.ipynb) uses word embeddings to investigate the semantic differences between UK and US climate policy speeches.
-- [topic_model_analysis.Rmd](./source/analysis/topic_model_analysis.Rmd) uses structural topic models to investigate the thematic differences between UK and US climate policy speeches.
+- [word_embeddings_analysis.ipynb](./source/analysis/word_embeddings_analysis.ipynb) uses word embeddings to investigate the semantic differences between UK and US climate policy speeches.
+- [topic_modelling_analysis](./source/analysis/topic_modelling_analysis.Rmd) uses structural topic models to investigate the thematic differences between UK and US climate policy speeches.
